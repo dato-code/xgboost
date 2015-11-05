@@ -80,7 +80,7 @@ class BaseMaker: public IUpdater {
       }
       unsigned n = static_cast<unsigned>(p * findex.size());
       random::Shuffle(findex);
-      findex.resize(n);
+      findex.resize(std::max<unsigned>(n, 1));
       // sync the findex if it is subsample
       std::string s_cache;
       utils::MemoryBufferStream fc(&s_cache);
