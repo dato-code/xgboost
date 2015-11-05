@@ -501,11 +501,11 @@ class BoostLearner : public rabit::Serializable {
   EvalSet evaluator_;
   // model parameter
   ModelParam  mparam;
-  // gbm model that back everything
+  // gbm model that backs everything
   gbm::IGradBooster *gbm_;
   // name of gbm model used for training
   std::string name_gbm_;
-  // objective fnction
+  // objective function
   IObjFunction *obj_;
   // name of objective function
   std::string name_obj_;
