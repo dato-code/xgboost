@@ -284,6 +284,7 @@ class BoostLearner : public rabit::Serializable {
    * \brief update the model for one iteration
    * \param iter current iteration number
    * \param p_train pointer to the data matrix
+   * \param update_gpairs flag to perform updating gpairs. First iteration always updates gpairs.
    */
   inline void UpdateOneIter(int iter, const DMatrix &train) {
     if (seed_per_iteration != 0 || rabit::IsDistributed()) {
@@ -293,6 +294,24 @@ class BoostLearner : public rabit::Serializable {
     obj_->GetGradient(preds_, train.info, iter, &gpair_);
     gbm_->DoBoost(train.fmat(), this->FindBufferOffset(train), train.info.info, &gpair_);
   }
+
+  /*!
+   * \overload
+   * Only derive gpair before first iteration, and use the same gpair for all iterations.
+   * Used for implementing update rule for random forest, where each tree is trained on the same
+   * gpairs.
+   */
+  inline void UpdateOneIterKeepGpair(int iter, const DMatrix &train) {
+    if (seed_per_iteration != 0 || rabit::IsDistributed()) {
+      random::Seed(this->seed * kRandSeedMagic + iter);
+    }
+    if (iter == 0) {
+      this->PredictRaw(train, &preds_);
+      obj_->GetGradient(preds_, train.info, iter, &gpair_);
+    }
+    gbm_->DoBoost(train.fmat(), this->FindBufferOffset(train), train.info.info, &gpair_);
+  }
+
   /*!
    * \brief whether model allow lazy checkpoint
    */
