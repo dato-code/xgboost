@@ -81,13 +81,24 @@ class EvalSet{
                           const MetaInfo &info,
                           bool distributed = false) {
     std::string result = "";
-    for (size_t i = 0; i < evals_.size(); ++i) {
-      float res = evals_[i]->Eval(preds, info, distributed);
+    std::vector<double> eval_results = EvalRaw(evname, preds, info, distributed);
+    for (size_t i = 0; i < eval_results.size(); ++i) {
       char tmp[1024];
-      utils::SPrintf(tmp, sizeof(tmp), "\t%s-%s:%f", evname, evals_[i]->Name(), res);
+      utils::SPrintf(tmp, sizeof(tmp), "\t%s-%s:%f", evname, evals_[i]->Name(), eval_results[i]);
       result += tmp;
     }
     return result;
+  }
+  inline std::vector<double> EvalRaw(const char *evname,
+                                     const std::vector<float> &preds,
+                                     const MetaInfo &info,
+                                     bool distributed = false) {
+    std::vector<double> evals;
+    for (size_t i = 0; i < evals_.size(); ++i) {
+      double res = evals_[i]->Eval(preds, info, distributed);
+      evals.push_back(res);
+    }
+    return evals;
   }
   inline size_t Size(void) const {
     return evals_.size();
