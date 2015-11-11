@@ -85,7 +85,7 @@ class IGradBooster {
   virtual void Predict(IFMatrix *p_fmat,
                        int64_t buffer_offset,
                        const BoosterInfo &info,
-                       std::vector<float> *out_preds,
+                       std::vector<bst_float> *out_preds,
                        unsigned ntree_limit = 0) = 0;
   /*!
    * \brief online prediction funciton, predict score for one instance at a time
@@ -100,7 +100,7 @@ class IGradBooster {
    * \sa Predict
    */
   virtual void Predict(const SparseBatch::Inst &inst,
-                       std::vector<float> *out_preds,
+                       std::vector<bst_float> *out_preds,
                        unsigned ntree_limit = 0,
                        unsigned root_index = 0)  = 0;
   /*!
@@ -114,7 +114,7 @@ class IGradBooster {
    */
   virtual void PredictLeaf(IFMatrix *p_fmat,
                            const BoosterInfo &info,
-                           std::vector<float> *out_preds,
+                           std::vector<bst_float> *out_preds,
                            unsigned ntree_limit = 0) = 0;
   /*!
    * \brief dump the model in text format
