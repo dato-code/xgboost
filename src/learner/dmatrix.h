@@ -25,20 +25,20 @@ struct MetaInfo {
    */
   BoosterInfo info;
   /*! \brief label of each instance */
-  std::vector<float> labels;
+  std::vector<bst_float> labels;
   /*!
    * \brief the index of begin and end of a group
    * needed when the learning task is ranking
    */
   std::vector<bst_uint> group_ptr;
   /*! \brief weights of each instance, optional */
-  std::vector<float> weights;
+  std::vector<bst_float> weights;
   /*!
    * \brief initialized margins,
    * if specified, xgboost will start from this init margin
    * can be used to specify initial prediction to boost from
    */
-  std::vector<float> base_margin;
+  std::vector<bst_float> base_margin;
   /*! \brief version flag, used to check version of this info */
   static const int kVersion = 0;
   // constructor
@@ -107,7 +107,7 @@ struct MetaInfo {
     fclose(fi);
     return true;
   }
-  inline std::vector<float>& GetFloatInfo(const char *field) {
+  inline std::vector<bst_float>& GetFloatInfo(const char *field) {
     using namespace std;
     if (!strcmp(field, "label")) return labels;
     if (!strcmp(field, "weight")) return weights;
@@ -115,7 +115,7 @@ struct MetaInfo {
     utils::Error("unknown field %s", field);
     return labels;
   }
-  inline const std::vector<float>& GetFloatInfo(const char *field) const {
+  inline const std::vector<bst_float>& GetFloatInfo(const char *field) const {
     return ((MetaInfo*)this)->GetFloatInfo(field); // NOLINT(*)
   }
   inline std::vector<unsigned> &GetUIntInfo(const char *field) {
@@ -131,7 +131,7 @@ struct MetaInfo {
   // try to load weight information from file, if exists
   inline bool TryLoadFloatInfo(const char *field, const char* fname, bool silent = false) {
     using namespace std;
-    std::vector<float> &data = this->GetFloatInfo(field);
+    std::vector<bst_float> &data = this->GetFloatInfo(field);
     FILE *fi = fopen64(fname, "r");
     if (fi == NULL) return false;
     float wt;

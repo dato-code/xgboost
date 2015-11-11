@@ -26,7 +26,7 @@ namespace learner {
  */
 template<typename Derived>
 struct EvalEWiseBase : public IEvaluator {
-  virtual float Eval(const std::vector<float> &preds,
+  virtual bst_float Eval(const std::vector<bst_float> &preds,
                      const MetaInfo &info,
                      bool distributed) const {
     utils::Check(info.labels.size() != 0, "label set cannot be empty");
@@ -36,14 +36,14 @@ struct EvalEWiseBase : public IEvaluator {
 
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(info.labels.size());
 
-    float sum = 0.0, wsum = 0.0;
+    bst_float sum = 0.0, wsum = 0.0;
     #pragma omp parallel for reduction(+: sum, wsum) schedule(static)
     for (bst_omp_uint i = 0; i < ndata; ++i) {
-      const float wt = info.GetWeight(i);
+      const bst_float wt = info.GetWeight(i);
       sum += Derived::EvalRow(info.labels[i], preds[i]) * wt;
       wsum += wt;
     }
-    float dat[2]; dat[0] = sum, dat[1] = wsum;
+    bst_float dat[2]; dat[0] = sum, dat[1] = wsum;
     if (distributed) {
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
     }
@@ -55,13 +55,13 @@ struct EvalEWiseBase : public IEvaluator {
    * \param label label of current instance
    * \param pred prediction value of current instance
    */
-  inline static float EvalRow(float label, float pred);
+  inline static bst_float EvalRow(bst_float label, bst_float pred);
   /*!
    * \brief to be overide by subclas, final trasnformation
    * \param esum the sum statistics returned by EvalRow
    * \param wsum sum of weight
    */
-  inline static float GetFinal(float esum, float wsum) {
+  inline static bst_float GetFinal(bst_float esum, bst_float wsum) {
     return esum / wsum;
   }
 };
@@ -71,11 +71,11 @@ struct EvalRMSE : public EvalEWiseBase<EvalRMSE> {
   virtual const char *Name(void) const {
     return "rmse";
   }
-  inline static float EvalRow(float label, float pred) {
-    float diff = label - pred;
+  inline static bst_float EvalRow(bst_float label, bst_float pred) {
+    bst_float diff = label - pred;
     return diff * diff;
   }
-  inline static float GetFinal(float esum, float wsum) {
+  inline static bst_float GetFinal(bst_float esum, bst_float wsum) {
     return std::sqrt(esum / wsum);
   }
 };
@@ -85,9 +85,9 @@ struct EvalLogLoss : public EvalEWiseBase<EvalLogLoss> {
   virtual const char *Name(void) const {
     return "logloss";
   }
-  inline static float EvalRow(float y, float py) {
-    const float eps = 1e-16f;
-    const float pneg = 1.0f - py;
+  inline static bst_float EvalRow(bst_float y, bst_float py) {
+    const bst_float eps = 1e-16f;
+    const bst_float pneg = 1.0f - py;
     if (py < eps) {
       return -y * std::log(eps) - (1.0f - y)  * std::log(1.0f - eps);
     } else if (pneg < eps) {
@@ -103,7 +103,7 @@ struct EvalError : public EvalEWiseBase<EvalError> {
   virtual const char *Name(void) const {
     return "error";
   }
-  inline static float EvalRow(float label, float pred) {
+  inline static bst_float EvalRow(bst_float label, bst_float pred) {
     // assume label is in [0,1]
     return pred > 0.5f ? 1.0f - label : label;
   }
@@ -114,8 +114,8 @@ struct EvalPoissionNegLogLik : public EvalEWiseBase<EvalPoissionNegLogLik> {
   virtual const char *Name(void) const {
     return "poisson-nloglik";
   }
-  inline static float EvalRow(float y, float py) {
-    const float eps = 1e-16f;
+  inline static bst_float EvalRow(bst_float y, bst_float py) {
+    const bst_float eps = 1e-16f;
     if (py < eps) py = eps;
     return utils::LogGamma(y + 1.0f) + py - std::log(py) * y;
   }
@@ -127,7 +127,7 @@ struct EvalPoissionNegLogLik : public EvalEWiseBase<EvalPoissionNegLogLik> {
  */
 template<typename Derived>
 struct EvalMClassBase : public IEvaluator {
-  virtual float Eval(const std::vector<float> &preds,
+  virtual bst_float Eval(const std::vector<bst_float> &preds,
                      const MetaInfo &info,
                      bool distributed) const {
     utils::Check(info.labels.size() != 0, "label set cannot be empty");
@@ -138,11 +138,11 @@ struct EvalMClassBase : public IEvaluator {
                  "mlogloss and merror are only used for multi-class classification,"\
                  " use logloss for binary classification");
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(info.labels.size());
-    float sum = 0.0, wsum = 0.0;
+    bst_float sum = 0.0, wsum = 0.0;
     int label_error = 0;
     #pragma omp parallel for reduction(+: sum, wsum) schedule(static)
     for (bst_omp_uint i = 0; i < ndata; ++i) {
-      const float wt = info.GetWeight(i);
+      const bst_float wt = info.GetWeight(i);
       int label =  static_cast<int>(info.labels[i]);
       if (label >= 0 && label < static_cast<int>(nclass)) {
         sum += Derived::EvalRow(label,
@@ -157,7 +157,7 @@ struct EvalMClassBase : public IEvaluator {
                  "MultiClassEvaluation: label must be in [0, num_class)," \
                  " num_class=%d but found %d in label",
                  static_cast<int>(nclass), label_error);
-    float dat[2]; dat[0] = sum, dat[1] = wsum;
+    bst_float dat[2]; dat[0] = sum, dat[1] = wsum;
     if (distributed) {
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
     }
@@ -170,15 +170,15 @@ struct EvalMClassBase : public IEvaluator {
    * \param pred prediction value of current instance
    * \param nclass number of class in the prediction
    */
-  inline static float EvalRow(int label,
-                              const float *pred,
+  inline static bst_float EvalRow(int label,
+                              const bst_float *pred,
                               size_t nclass);
   /*!
    * \brief to be overide by subclas, final trasnformation
    * \param esum the sum statistics returned by EvalRow
    * \param wsum sum of weight
    */
-  inline static float GetFinal(float esum, float wsum) {
+  inline static bst_float GetFinal(bst_float esum, bst_float wsum) {
     return esum / wsum;
   }
   // used to store error message
@@ -189,8 +189,8 @@ struct EvalMatchError : public EvalMClassBase<EvalMatchError> {
   virtual const char *Name(void) const {
     return "merror";
   }
-  inline static float EvalRow(int label,
-                              const float *pred,
+  inline static bst_float EvalRow(int label,
+                              const bst_float *pred,
                               size_t nclass) {
     return FindMaxIndex(pred, nclass) != static_cast<int>(label);
   }
@@ -200,10 +200,10 @@ struct EvalMultiLogLoss : public EvalMClassBase<EvalMultiLogLoss> {
   virtual const char *Name(void) const {
     return "mlogloss";
   }
-  inline static float EvalRow(int label,
-                              const float *pred,
+  inline static bst_float EvalRow(int label,
+                              const bst_float *pred,
                               size_t nclass) {
-    const float eps = 1e-16f;
+    const bst_float eps = 1e-16f;
     size_t k = static_cast<size_t>(label);
     if (pred[k] > eps) {
       return -std::log(pred[k]);
@@ -223,7 +223,7 @@ struct EvalCTest: public IEvaluator {
   virtual const char *Name(void) const {
     return name_.c_str();
   }
-  virtual float Eval(const std::vector<float> &preds,
+  virtual bst_float Eval(const std::vector<bst_float> &preds,
                      const MetaInfo &info,
                      bool distributed) const {
     utils::Check(!distributed, "metric %s do not support distributed evaluation", name_.c_str());
@@ -235,7 +235,7 @@ struct EvalCTest: public IEvaluator {
     utils::Check(ndata == info.info.fold_index.size(), "need fold index");
     double wsum = 0.0;
     for (size_t k = 0; k < ngroup; ++k) {
-      std::vector<float> tpred;
+      std::vector<bst_float> tpred;
       MetaInfo tinfo;
       for (unsigned i = 0; i < ndata; ++i) {
         if (info.info.fold_index[i] == k) {
@@ -246,7 +246,7 @@ struct EvalCTest: public IEvaluator {
       }
       wsum += base_->Eval(tpred, tinfo);
     }
-    return static_cast<float>(wsum / ngroup);
+    return static_cast<bst_float>(wsum / ngroup);
   }
 
  private:
@@ -262,7 +262,7 @@ struct EvalAMS : public IEvaluator {
     // note: ams@0 will automatically select which ratio to go
     utils::Check(std::sscanf(name, "ams@%f", &ratio_) == 1, "invalid ams format");
   }
-  virtual float Eval(const std::vector<float> &preds,
+  virtual bst_float Eval(const std::vector<bst_float> &preds,
                      const MetaInfo &info,
                      bool distributed) const {
     utils::Check(!distributed, "metric AMS do not support distributed evaluation");
@@ -270,7 +270,7 @@ struct EvalAMS : public IEvaluator {
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(info.labels.size());
 
     utils::Check(info.weights.size() == ndata, "we need weight to evaluate ams");
-    std::vector< std::pair<float, unsigned> > rec(ndata);
+    std::vector< std::pair<bst_float, unsigned> > rec(ndata);
 
     #pragma omp parallel for schedule(static)
     for (bst_omp_uint i = 0; i < ndata; ++i) {
@@ -284,7 +284,7 @@ struct EvalAMS : public IEvaluator {
     double s_tp = 0.0, b_fp = 0.0, tams = 0.0;
     for (unsigned i = 0; i < static_cast<unsigned>(ndata-1) && i < ntop; ++i) {
       const unsigned ridx = rec[i].second;
-      const float wt = info.weights[ridx];
+      const bst_float wt = info.weights[ridx];
       if (info.labels[ridx] > 0.5f) {
         s_tp += wt;
       } else {
@@ -299,10 +299,10 @@ struct EvalAMS : public IEvaluator {
       }
     }
     if (ntop == ndata) {
-      utils::Printf("\tams-ratio=%g", static_cast<float>(thresindex) / ndata);
-      return static_cast<float>(tams);
+      utils::Printf("\tams-ratio=%g", static_cast<bst_float>(thresindex) / ndata);
+      return static_cast<bst_float>(tams);
     } else {
-      return static_cast<float>(sqrt(2*((s_tp+b_fp+br) * log(1.0 + s_tp/(b_fp+br)) - s_tp)));
+      return static_cast<bst_float>(sqrt(2*((s_tp+b_fp+br) * log(1.0 + s_tp/(b_fp+br)) - s_tp)));
     }
   }
   virtual const char *Name(void) const {
@@ -311,7 +311,7 @@ struct EvalAMS : public IEvaluator {
 
  private:
   std::string name_;
-  float ratio_;
+  bst_float ratio_;
 };
 
 /*! \brief precision with cut off at top percentile */
@@ -326,32 +326,32 @@ struct EvalPrecisionRatio : public IEvaluator{
       use_ap = 0;
     }
   }
-  virtual float Eval(const std::vector<float> &preds,
+  virtual bst_float Eval(const std::vector<bst_float> &preds,
                      const MetaInfo &info,
                      bool distributed) const {
     utils::Check(!distributed, "metric %s do not support distributed evaluation", Name());
     utils::Check(info.labels.size() != 0, "label set cannot be empty");
     utils::Assert(preds.size() % info.labels.size() == 0,
                   "label size predict size not match");
-    std::vector< std::pair<float, unsigned> > rec;
+    std::vector< std::pair<bst_float, unsigned> > rec;
     for (size_t j = 0; j < info.labels.size(); ++j) {
       rec.push_back(std::make_pair(preds[j], static_cast<unsigned>(j)));
     }
     std::sort(rec.begin(), rec.end(), CmpFirst);
     double pratio = CalcPRatio(rec, info);
-    return static_cast<float>(pratio);
+    return static_cast<bst_float>(pratio);
   }
   virtual const char *Name(void) const {
     return name_.c_str();
   }
 
  protected:
-  inline double CalcPRatio(const std::vector< std::pair<float, unsigned> >& rec,
+  inline double CalcPRatio(const std::vector< std::pair<bst_float, unsigned> >& rec,
                            const MetaInfo &info) const {
     size_t cutoff = static_cast<size_t>(ratio_ * rec.size());
     double wt_hit = 0.0, wsum = 0.0, wt_sum = 0.0;
     for (size_t j = 0; j < cutoff; ++j) {
-      const float wt = info.GetWeight(j);
+      const bst_float wt = info.GetWeight(j);
       wt_hit += info.labels[rec[j].second] * wt;
       wt_sum += wt;
       wsum += wt_hit / wt_sum;
@@ -363,13 +363,13 @@ struct EvalPrecisionRatio : public IEvaluator{
     }
   }
   int use_ap;
-  float ratio_;
+  bst_float ratio_;
   std::string name_;
 };
 
 /*! \brief Area under curve, for both classification and rank */
 struct EvalAuc : public IEvaluator {
-  virtual float Eval(const std::vector<float> &preds,
+  virtual bst_float Eval(const std::vector<bst_float> &preds,
                      const MetaInfo &info,
                      bool distributed) const {
     utils::Check(info.labels.size() != 0, "label set cannot be empty");
@@ -387,7 +387,7 @@ struct EvalAuc : public IEvaluator {
     #pragma omp parallel reduction(+:sum_auc)
     {
       // each thread takes a local rec
-      std::vector< std::pair<float, unsigned> > rec;
+      std::vector< std::pair<bst_float, unsigned> > rec;
       #pragma omp for schedule(static)
       for (bst_omp_uint k = 0; k < ngroup; ++k) {
         rec.clear();
@@ -399,8 +399,8 @@ struct EvalAuc : public IEvaluator {
         double sum_pospair = 0.0;
         double sum_npos = 0.0, sum_nneg = 0.0, buf_pos = 0.0, buf_neg = 0.0;
         for (size_t j = 0; j < rec.size(); ++j) {
-          const float wt = info.GetWeight(rec[j].second);
-          const float ctr = info.labels[rec[j].second];
+          const bst_float wt = info.GetWeight(rec[j].second);
+          const bst_float ctr = info.labels[rec[j].second];
           // keep bucketing predictions in same bucket
           if (j != 0 && rec[j].first != rec[j - 1].first) {
             sum_pospair += buf_neg * (sum_npos + buf_pos *0.5);
@@ -419,14 +419,14 @@ struct EvalAuc : public IEvaluator {
       }
     }
     if (distributed) {
-      float dat[2];
-      dat[0] = static_cast<float>(sum_auc);
-      dat[1] = static_cast<float>(ngroup);
+      bst_float dat[2];
+      dat[0] = static_cast<bst_float>(sum_auc);
+      dat[1] = static_cast<bst_float>(ngroup);
       // approximately estimate auc using mean
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
       return dat[0] / dat[1];
     } else {
-      return static_cast<float>(sum_auc) / ngroup;
+      return static_cast<bst_float>(sum_auc) / ngroup;
     }
   }
   virtual const char *Name(void) const {
@@ -437,7 +437,7 @@ struct EvalAuc : public IEvaluator {
 /*! \brief Evaluate rank list */
 struct EvalRankList : public IEvaluator {
  public:
-  virtual float Eval(const std::vector<float> &preds,
+  virtual bst_float Eval(const std::vector<bst_float> &preds,
                      const MetaInfo &info,
                      bool distributed) const {
     utils::Check(preds.size() == info.labels.size(),
@@ -454,7 +454,7 @@ struct EvalRankList : public IEvaluator {
     #pragma omp parallel reduction(+:sum_metric)
     {
       // each thread takes a local rec
-      std::vector< std::pair<float, unsigned> > rec;
+      std::vector< std::pair<bst_float, unsigned> > rec;
       #pragma omp for schedule(static)
       for (bst_omp_uint k = 0; k < ngroup; ++k) {
         rec.clear();
@@ -465,14 +465,14 @@ struct EvalRankList : public IEvaluator {
       }
     }
     if (distributed) {
-      float dat[2];
-      dat[0] = static_cast<float>(sum_metric);
-      dat[1] = static_cast<float>(ngroup);
+      bst_float dat[2];
+      dat[0] = static_cast<bst_float>(sum_metric);
+      dat[1] = static_cast<bst_float>(ngroup);
       // approximately estimate auc using mean
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
       return dat[0] / dat[1];
     } else {
-      return static_cast<float>(sum_metric) / ngroup;
+      return static_cast<bst_float>(sum_metric) / ngroup;
     }
   }
   virtual const char *Name(void) const {
@@ -492,7 +492,7 @@ struct EvalRankList : public IEvaluator {
     }
   }
   /*! \return evaluation metric, given the pair_sort record, (pred,label) */
-  virtual float EvalMetric(std::vector< std::pair<float, unsigned> > &pair_sort) const = 0; // NOLINT(*)
+  virtual bst_float EvalMetric(std::vector< std::pair<bst_float, unsigned> > &pair_sort) const = 0; // NOLINT(*)
 
  protected:
   unsigned topn_;
@@ -506,14 +506,14 @@ struct EvalPrecision : public EvalRankList{
   explicit EvalPrecision(const char *name) : EvalRankList(name) {}
 
  protected:
-  virtual float EvalMetric(std::vector< std::pair<float, unsigned> > &rec) const {
+  virtual bst_float EvalMetric(std::vector< std::pair<bst_float, unsigned> > &rec) const {
     // calculate Preicsion
     std::sort(rec.begin(), rec.end(), CmpFirst);
     unsigned nhit = 0;
     for (size_t j = 0; j < rec.size() && j < this->topn_; ++j) {
       nhit += (rec[j].second != 0);
     }
-    return static_cast<float>(nhit) / topn_;
+    return static_cast<bst_float>(nhit) / topn_;
   }
 };
 
@@ -523,7 +523,7 @@ struct EvalNDCG : public EvalRankList{
   explicit EvalNDCG(const char *name) : EvalRankList(name) {}
 
  protected:
-  inline float CalcDCG(const std::vector< std::pair<float, unsigned> > &rec) const {
+  inline bst_float CalcDCG(const std::vector< std::pair<bst_float, unsigned> > &rec) const {
     double sumdcg = 0.0;
     for (size_t i = 0; i < rec.size() && i < this->topn_; ++i) {
       const unsigned rel = rec[i].second;
@@ -531,13 +531,13 @@ struct EvalNDCG : public EvalRankList{
         sumdcg += ((1 << rel) - 1) / std::log(i + 2.0);
       }
     }
-    return static_cast<float>(sumdcg);
+    return static_cast<bst_float>(sumdcg);
   }
-  virtual float EvalMetric(std::vector< std::pair<float, unsigned> > &rec) const { // NOLINT(*)
+  virtual bst_float EvalMetric(std::vector< std::pair<bst_float, unsigned> > &rec) const { // NOLINT(*)
     std::stable_sort(rec.begin(), rec.end(), CmpFirst);
-    float dcg = this->CalcDCG(rec);
+    bst_float dcg = this->CalcDCG(rec);
     std::stable_sort(rec.begin(), rec.end(), CmpSecond);
-    float idcg = this->CalcDCG(rec);
+    bst_float idcg = this->CalcDCG(rec);
     if (idcg == 0.0f) {
       if (minus_) {
         return 0.0f;
@@ -555,7 +555,7 @@ struct EvalMAP : public EvalRankList {
   explicit EvalMAP(const char *name) : EvalRankList(name) {}
 
  protected:
-  virtual float EvalMetric(std::vector< std::pair<float, unsigned> > &rec) const {
+  virtual bst_float EvalMetric(std::vector< std::pair<bst_float, unsigned> > &rec) const {
     std::sort(rec.begin(), rec.end(), CmpFirst);
     unsigned nhits = 0;
     double sumap = 0.0;
@@ -563,13 +563,13 @@ struct EvalMAP : public EvalRankList {
       if (rec[i].second != 0) {
         nhits += 1;
         if (i < this->topn_) {
-          sumap += static_cast<float>(nhits) / (i+1);
+          sumap += static_cast<bst_float>(nhits) / (i+1);
         }
       }
     }
     if (nhits != 0) {
       sumap /= nhits;
-      return static_cast<float>(sumap);
+      return static_cast<bst_float>(sumap);
     } else {
       if (minus_) {
         return 0.0f;

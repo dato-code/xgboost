@@ -25,7 +25,7 @@ struct IEvaluator{
    *        the average statistics across all the node,
    *        this is only supported by some metrics
    */
-  virtual float Eval(const std::vector<float> &preds,
+  virtual bst_float Eval(const std::vector<bst_float> &preds,
                      const MetaInfo &info,
                      bool distributed = false) const = 0;
   /*! \return name of metric */
@@ -77,7 +77,7 @@ class EvalSet{
     }
   }
   inline std::string Eval(const char *evname,
-                          const std::vector<float> &preds,
+                          const std::vector<bst_float> &preds,
                           const MetaInfo &info,
                           bool distributed = false) {
     std::string result = "";
@@ -90,7 +90,7 @@ class EvalSet{
     return result;
   }
   inline std::vector<double> EvalRaw(const char *evname,
-                                     const std::vector<float> &preds,
+                                     const std::vector<bst_float> &preds,
                                      const MetaInfo &info,
                                      bool distributed = false) {
     std::vector<double> evals;

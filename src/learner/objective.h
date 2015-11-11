@@ -30,7 +30,7 @@ class IObjFunction{
    * \param iter current iteration number
    * \param out_gpair output of get gradient, saves gradient and second order gradient in
    */
-  virtual void GetGradient(const std::vector<float> &preds,
+  virtual void GetGradient(const std::vector<bst_float> &preds,
                            const MetaInfo &info,
                            int iter,
                            std::vector<bst_gpair> *out_gpair) = 0;
@@ -41,13 +41,13 @@ class IObjFunction{
    * \brief transform prediction values, this is only called when Prediction is called
    * \param io_preds prediction values, saves to this vector as well
    */
-  virtual void PredTransform(std::vector<float> *io_preds) {}
+  virtual void PredTransform(std::vector<bst_float> *io_preds) {}
   /*!
    * \brief transform prediction values, this is only called when Eval is called,
    *  usually it redirect to PredTransform
    * \param io_preds prediction values, saves to this vector as well
    */
-  virtual void EvalTransform(std::vector<float> *io_preds) {
+  virtual void EvalTransform(std::vector<bst_float> *io_preds) {
     this->PredTransform(io_preds);
   }
   /*!
