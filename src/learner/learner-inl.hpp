@@ -366,11 +366,12 @@ class BoostLearner : public rabit::Serializable {
                       bool output_margin,
                       std::vector<bst_float> *out_preds,
                       unsigned ntree_limit = 0,
-                      bool pred_leaf = false) const {
+                      bool pred_leaf = false,
+                      double rescale_constant = 1.0) const {
     if (pred_leaf) {
       gbm_->PredictLeaf(data.fmat(), data.info.info, out_preds, ntree_limit);
     } else {
-      this->PredictRaw(data, out_preds, ntree_limit);
+      this->PredictRaw(data, out_preds, ntree_limit, rescale_constant);
       if (!output_margin) {
         obj_->PredTransform(out_preds);
       }
@@ -444,12 +445,23 @@ class BoostLearner : public rabit::Serializable {
    */
   inline void PredictRaw(const DMatrix &data,
                          std::vector<bst_float> *out_preds,
-                         unsigned ntree_limit = 0) const {
+                         unsigned ntree_limit = 0,
+                         bst_float rescale_constant = 1.0) const {
     gbm_->Predict(data.fmat(), this->FindBufferOffset(data),
                   data.info.info, out_preds, ntree_limit);
-    // add base margin
+
     auto& preds = *out_preds;
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size());
+
+    // Rescale each leaf value
+    if (rescale_constant != 1.0) {
+      #pragma omp parallel for schedule(static)
+      for (bst_omp_uint j = 0; j < ndata; ++j) {
+        preds[j] *= rescale_constant;
+      }
+    }
+
+    // add base margin
     if (data.info.base_margin.size() != 0) {
       utils::Check(preds.size() == data.info.base_margin.size(),
                    "base_margin.size does not match with prediction size");
