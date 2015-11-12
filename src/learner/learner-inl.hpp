@@ -196,6 +196,65 @@ class BoostLearner : public rabit::Serializable {
       gbm_->ResetPredBuffer(pred_buffer_size);
     }
   }
+
+  /*! \brief training parameter for regression */
+  struct LegacyModelParam {
+    /* \brief global bias */
+    double base_score;
+    /* \brief number of features  */
+    unsigned num_feature;
+    /* \brief number of class, if it is multi-class classification  */
+    int num_class;
+    /*! \brief reserved field */
+    int reserved[32];
+    /*! \brief constructor */
+    ModelParam(void) {
+      base_score = 0.5f;
+      num_feature = 0;
+      num_class = 0;
+      std::memset(reserved, 0, sizeof(reserved));
+    }
+    /*!
+     * \brief set parameters from outside
+     * \param name name of the parameter
+     * \param val value of the parameter
+     */
+    inline void SetParam(const char *name, const char *val) {
+      using namespace std;
+      if (!strcmp("base_score", name)) base_score = static_cast<double>(atof(val));
+      if (!strcmp("num_class", name)) num_class = atoi(val);
+      if (!strcmp("bst:num_feature", name)) num_feature = atoi(val);
+    }
+  };
+
+  inline void LoadLegacyModel(utils::IStream &fi,  // NOLINT(*)
+                              bool calc_num_feature = true) {
+
+    LegacyModelParam legacy_model_param; 
+    utils::Check(fi.Read(&legacy_model_param, sizeof(LegacyModelParam)) != 0,
+                 "BoostLearner: wrong model format");
+    mparam.base_score = (float)(legacy_model_param.base_score);
+    mparam.num_feature = legacy_model_param.num_feature;
+    mparam.num_class = legacy_model_param.num_class;
+    mparam.saved_with_pbuffer = false;
+
+    utils::Check(fi.Read(&name_obj_), "BoostLearner: wrong model format");
+    utils::Check(fi.Read(&name_gbm_), "BoostLearner: wrong model format");
+
+    // delete existing gbm if any
+    if (obj_ != NULL) delete obj_;
+    if (gbm_ != NULL) delete gbm_;
+
+    this->InitTrainer(calc_num_feature);
+    this->InitObjGBM();
+    obj_->SetParam("num_class", std::to_string(mparam.num_class).c_str());
+    gbm_->LoadModel(fi, mparam.saved_with_pbuffer != 0);
+
+    if (mparam.saved_with_pbuffer == 0) {
+      gbm_->ResetPredBuffer(pred_buffer_size);
+    }
+  }
+
   // rabit load model from rabit checkpoint
   virtual void Load(rabit::Stream *fi) {
     // for row split, we should not keep pbuffer
