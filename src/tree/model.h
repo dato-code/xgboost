@@ -17,6 +17,7 @@
 #include "../utils/io.h"
 #include "../utils/fmap.h"
 #include "../utils/utils.h"
+#include <json/json_include.hpp>
 
 namespace xgboost {
 namespace tree {
@@ -393,12 +394,26 @@ class TreeModel {
    * \param with_stats whether dump out statistics as well
    * \return the string of dumped model
    */
-  inline std::string DumpModel(const utils::FeatMap& fmap, bool with_stats) {
-    std::stringstream fo("");
-    for (int i = 0; i < param.num_roots; ++i) {
-      this->Dump(i, fo, fmap, 0, with_stats);
+  inline std::string DumpModel(const utils::FeatMap& fmap, bool with_stats, bool json_format) {
+    if (json_format) {
+      JSONNode vertices(JSON_ARRAY);
+      vertices.set_name("vertices");
+      JSONNode edges(JSON_ARRAY);
+      edges.set_name("edges");
+      for (int i = 0; i < param.num_roots; ++i) {
+        this->DumpJson(i, vertices, edges, fmap, 0, with_stats);
+      }
+      JSONNode g;
+      g.push_back(vertices);
+      g.push_back(edges);
+      return g.write_formatted();
+    } else {
+      std::stringstream fo("");
+      for (int i = 0; i < param.num_roots; ++i) {
+        this->Dump(i, fo, fmap, 0, with_stats);
+      }
+      return fo.str();
     }
-    return fo.str();
   }
 
  private:
@@ -457,6 +472,69 @@ class TreeModel {
       this->Dump(nodes[nid].cleft(), fo, fmap, depth+1, with_stats);
       this->Dump(nodes[nid].cright(), fo, fmap, depth+1, with_stats);
     }
+  }
+
+  void DumpJson( int nid, JSONNode& vertices, JSONNode& edges,
+                 const utils::FeatMap& fmap, int depth, bool with_stats ) {
+      JSONNode vertex, left_edge, right_edge;
+      vertex.push_back(JSONNode("id", nid));
+      left_edge.push_back(JSONNode("src", nid));
+      right_edge.push_back(JSONNode("src", nid));
+      if( nodes[ nid ].is_leaf() ){
+        vertex.push_back(JSONNode("value", nodes[nid].leaf_value()));
+        vertex.push_back(JSONNode("type", "leaf"));
+        vertices.push_back(vertex);
+      } else {
+          // right then left,
+          TSplitCond cond = nodes[ nid ].split_cond();
+          const unsigned split_index = nodes[ nid ].split_index();
+          if( split_index < fmap.size() ){
+              vertex.push_back(JSONNode("name", fmap.name(split_index)));
+              switch( fmap.type(split_index) ){
+              case utils::FeatMap::kIndicator:{
+                  vertex.push_back(JSONNode("type", "indicator"));
+                  vertex.push_back(JSONNode("value", 1));
+                  int nyes = nodes[ nid ].default_left()?nodes[nid].cright():nodes[nid].cleft();
+                  int nno = nodes[nid].cdefault();
+                  left_edge.push_back(JSONNode("dst", nyes));
+                  left_edge.push_back(JSONNode("value", "yes"));
+                  right_edge.push_back(JSONNode("dst", nno));
+                  right_edge.push_back(JSONNode("value", "no"));
+                  break;
+              }
+              case utils::FeatMap::kInteger:{
+                  vertex.push_back(JSONNode("type", "integer"));
+                  vertex.push_back(JSONNode("value", int(float(cond)+1.0f)));
+                  left_edge.push_back(JSONNode("dst", nodes[nid].cleft()));
+                  left_edge.push_back(JSONNode("value", "yes"));
+                  right_edge.push_back(JSONNode("dst", nodes[nid].cright()));
+                  right_edge.push_back(JSONNode("value", "no"));
+                  break;
+              }
+              case utils::FeatMap::kFloat:
+              case utils::FeatMap::kQuantitive:{
+                  vertex.push_back(JSONNode("type", "float"));
+                  vertex.push_back(JSONNode("value", float(cond)));
+                  left_edge.push_back(JSONNode("dst", nodes[nid].cleft()));
+                  left_edge.push_back(JSONNode("value", "yes"));
+                  right_edge.push_back(JSONNode("dst", nodes[nid].cright()));
+                  right_edge.push_back(JSONNode("value", "no"));
+                  break;
+              }
+              default: utils::Error("unknown fmap type");
+              }
+          }else{
+              left_edge.push_back(JSONNode("dst", nodes[nid].cleft()));
+              left_edge.push_back(JSONNode("value", "yes"));
+              right_edge.push_back(JSONNode("dst", nodes[nid].cright()));
+              right_edge.push_back(JSONNode("value", "no"));
+          }
+          vertices.push_back(vertex);
+          edges.push_back(left_edge);
+          edges.push_back(right_edge);
+          this->DumpJson( nodes[ nid ].cleft(), vertices, edges, fmap, depth+1, with_stats );
+          this->DumpJson( nodes[ nid ].cright(), vertices, edges, fmap, depth+1, with_stats );
+      }
   }
 };
 

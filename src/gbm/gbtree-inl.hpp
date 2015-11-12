@@ -197,7 +197,7 @@ class GBTree : public IGradBooster {
   virtual std::vector<std::string> DumpModel(const utils::FeatMap& fmap, int option) {
     std::vector<std::string> dump;
     for (size_t i = 0; i < trees.size(); i++) {
-      dump.push_back(trees[i]->DumpModel(fmap, option&1));
+      dump.push_back(trees[i]->DumpModel(fmap, option&1, option&2));
     }
     return dump;
   }
