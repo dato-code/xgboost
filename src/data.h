@@ -21,6 +21,7 @@ typedef unsigned bst_uint;
 
 #ifndef XGBOOST_DOUBLE_PRECISION
 /*! \brief float type, used for storing statistics */
+#pragma message("Warning: XGBoost is complied with single precision")
 typedef float bst_float;
 #else
 typedef double bst_float;
