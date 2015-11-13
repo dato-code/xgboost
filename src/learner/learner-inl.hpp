@@ -208,7 +208,7 @@ class BoostLearner : public rabit::Serializable {
     /*! \brief reserved field */
     int reserved[32];
     /*! \brief constructor */
-    ModelParam(void) {
+    LegacyModelParam(void) {
       base_score = 0.5f;
       num_feature = 0;
       num_class = 0;
