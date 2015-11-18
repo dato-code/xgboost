@@ -18,6 +18,10 @@
 #include "../utils/group_data.h"
 #include "./sparse_batch_page.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace io {
 /*!
@@ -148,12 +152,13 @@ class FMatrixS : public IFMatrix {
     // clear rowset
     buffered_rowset_.clear();
     // bit map
-    int nthread;
     std::vector<bool> bmap;
-    #pragma omp parallel
-    {
-      nthread = omp_get_num_threads();
-    }
+    // int nthread;
+    // #pragma omp parallel
+    // {
+    //   nthread = omp_get_num_threads();
+    // }
+    int nthread = graphlab::thread::cpu_count();
     pcol->Clear();
     utils::ParallelGroupBuilder<SparseBatch::Entry>
         builder(&pcol->offset, &pcol->data);
@@ -172,9 +177,11 @@ class FMatrixS : public IFMatrix {
           bmap[i] = false;
         }
       }
-      #pragma omp parallel for schedule(static)
-      for (long i = 0; i < batch_size; ++i) { // NOLINT(*)
-        int tid = omp_get_thread_num();
+      // #pragma omp parallel for schedule(static)
+      // for (long i = 0; i < batch_size; ++i) { // NOLINT(*)
+      graphlab::parallel_for (0, batch_size, [&](size_t i) { // NOLINT(*)
+        // int tid = omp_get_thread_num();
+        int tid = graphlab::thread::thread_id();
         bst_uint ridx = static_cast<bst_uint>(batch.base_rowid + i);
         if (bmap[ridx]) {
           RowBatch::Inst inst = batch[i];
@@ -184,16 +191,18 @@ class FMatrixS : public IFMatrix {
             }
           }
         }
-      }
+      });
     }
     builder.InitStorage();
 
     iter_->BeforeFirst();
     while (iter_->Next()) {
       const RowBatch &batch = iter_->Value();
-      #pragma omp parallel for schedule(static)
-      for (long i = 0; i < static_cast<long>(batch.size); ++i) { // NOLINT(*)
-        int tid = omp_get_thread_num();
+      // #pragma omp parallel for schedule(static)
+      // for (long i = 0; i < static_cast<long>(batch.size); ++i) { // NOLINT(*)
+      graphlab::parallel_for (0, batch.size, [&](size_t i) { // NOLINT(*)
+        // int tid = omp_get_thread_num();
+        int tid = graphlab::thread::thread_id();
         bst_uint ridx = static_cast<bst_uint>(batch.base_rowid + i);
         if (bmap[ridx]) {
           RowBatch::Inst inst = batch[i];
@@ -205,21 +214,22 @@ class FMatrixS : public IFMatrix {
             }
           }
         }
-      }
+      });
     }
 
     utils::Assert(pcol->Size() == info_.num_col(),
                   "inconsistent col data");
     // sort columns
     bst_omp_uint ncol = static_cast<bst_omp_uint>(pcol->Size());
-    #pragma omp parallel for schedule(dynamic, 1) num_threads(nthread)
-    for (bst_omp_uint i = 0; i < ncol; ++i) {
+    // #pragma omp parallel for schedule(dynamic, 1) num_threads(nthread)
+    // for (bst_omp_uint i = 0; i < ncol; ++i) {
+    graphlab::parallel_for(0, ncol, [&](size_t i) {
       if (pcol->offset[i] < pcol->offset[i + 1]) {
         std::sort(BeginPtr(pcol->data) + pcol->offset[i],
                   BeginPtr(pcol->data) + pcol->offset[i + 1],
                   SparseBatch::Entry::CmpValue);
       }
-    }
+    });
   }
 
   inline void MakeManyBatch(const std::vector<bool> &enabled,
@@ -261,23 +271,25 @@ class FMatrixS : public IFMatrix {
                           const bst_uint *ridx,
                           const std::vector<bool> &enabled,
                           SparsePage *pcol) {
-    int nthread;
-    #pragma omp parallel
-    {
-      nthread = omp_get_num_threads();
-      int max_nthread = std::max(omp_get_num_procs() / 2 - 2, 1);
-      if (nthread > max_nthread) {
-        nthread = max_nthread;
-      }
-    }
+    int nthread = graphlab::thread::cpu_count();
+    // #pragma omp parallel
+    // {
+    //   nthread = omp_get_num_threads();
+    //   int max_nthread = std::max(omp_get_num_procs() / 2 - 2, 1);
+    //   if (nthread > max_nthread) {
+    //     nthread = max_nthread;
+    //   }
+    // }
     pcol->Clear();
     utils::ParallelGroupBuilder<SparseBatch::Entry>
         builder(&pcol->offset, &pcol->data);
     builder.InitBudget(info_.num_col(), nthread);
     bst_omp_uint ndata = static_cast<bst_uint>(batch.size);
-    #pragma omp parallel for schedule(static) num_threads(nthread)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
-      int tid = omp_get_thread_num();
+    // #pragma omp parallel for schedule(static) num_threads(nthread)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for(0, ndata, [&](size_t i) {
+      // int tid = omp_get_thread_num();
+      int tid = graphlab::thread::thread_id();
       RowBatch::Inst inst = batch[i];
       for (bst_uint j = 0; j < inst.length; ++j) {
         const SparseBatch::Entry &e = inst[j];
@@ -285,11 +297,13 @@ class FMatrixS : public IFMatrix {
           builder.AddBudget(e.index, tid);
         }
       }
-    }
+    });
     builder.InitStorage();
-    #pragma omp parallel for schedule(static) num_threads(nthread)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
-      int tid = omp_get_thread_num();
+    // #pragma omp parallel for schedule(static) num_threads(nthread)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for(0, ndata, [&](size_t i) {
+      // int tid = omp_get_thread_num();
+      int tid = graphlab::thread::thread_id();
       RowBatch::Inst inst = batch[i];
       for (bst_uint j = 0; j < inst.length; ++j) {
         const SparseBatch::Entry &e = inst[j];
@@ -297,18 +311,19 @@ class FMatrixS : public IFMatrix {
                      SparseBatch::Entry(ridx[i], e.fvalue),
                      tid);
       }
-    }
+    });
     utils::Assert(pcol->Size() == info_.num_col(), "inconsistent col data");
     // sort columns
     bst_omp_uint ncol = static_cast<bst_omp_uint>(pcol->Size());
-    #pragma omp parallel for schedule(dynamic, 1) num_threads(nthread)
-    for (bst_omp_uint i = 0; i < ncol; ++i) {
+    // #pragma omp parallel for schedule(dynamic, 1) num_threads(nthread)
+    // for (bst_omp_uint i = 0; i < ncol; ++i) {
+    graphlab::parallel_for (0, ncol, [&](size_t i) {
       if (pcol->offset[i] < pcol->offset[i + 1]) {
         std::sort(BeginPtr(pcol->data) + pcol->offset[i],
                   BeginPtr(pcol->data) + pcol->offset[i + 1],
                   SparseBatch::Entry::CmpValue);
       }
-    }
+    });
   }
 
  private:

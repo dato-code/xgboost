@@ -14,6 +14,10 @@
 #include "../utils/group_data.h"
 #include "./updater_basemaker-inl.hpp"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace tree {
 template<typename TStats>
@@ -100,12 +104,13 @@ class HistMaker: public BaseMaker {
     // aggregate all statistics to hset[0]
     inline void Aggregate(void) {
       bst_omp_uint nsize = static_cast<bst_omp_uint>(cut.size());
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < nsize; ++i) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < nsize; ++i) {
+      graphlab::parallel_for (0, nsize, [&](size_t i) {
         for (size_t tid = 1; tid < hset.size(); ++tid) {
           hset[0].data[i].Add(hset[tid].data[i]);
         }
-      }
+      });
     }
     /*! \brief clear the workspace */
     inline void Clear(void) {
@@ -221,8 +226,9 @@ class HistMaker: public BaseMaker {
     std::vector<SplitEntry> sol(qexpand.size());
     std::vector<TStats> left_sum(qexpand.size());
     bst_omp_uint nexpand = static_cast<bst_omp_uint>(qexpand.size());
-    #pragma omp parallel for schedule(dynamic, 1)
-    for (bst_omp_uint wid = 0; wid < nexpand; ++wid) {
+    // #pragma omp parallel for schedule(dynamic, 1)
+    // for (bst_omp_uint wid = 0; wid < nexpand; ++wid) {
+    graphlab::parallel_for(0, nexpand, [&](size_t wid) {
       const int nid = qexpand[wid];
       utils::Assert(node2workindex[nid] == static_cast<int>(wid),
                     "node2workindex inconsistent");
@@ -232,7 +238,7 @@ class HistMaker: public BaseMaker {
         EnumerateSplit(this->wspace.hset[0][i + wid * (num_feature+1)],
                        node_sum, fset[i], &best, &left_sum[wid]);
       }
-    }
+    });
     // get the best result, we can synchronize the solution
     for (bst_omp_uint wid = 0; wid < nexpand; ++wid) {
       const int nid = qexpand[wid];
@@ -333,15 +339,16 @@ class CQHistMaker: public HistMaker<TStats> {
         const ColBatch &batch = iter->Value();
         // start enumeration
         const bst_omp_uint nsize = static_cast<bst_omp_uint>(batch.size);
-        #pragma omp parallel for schedule(dynamic, 1)
-        for (bst_omp_uint i = 0; i < nsize; ++i) {
+        // #pragma omp parallel for schedule(dynamic, 1)
+        // for (bst_omp_uint i = 0; i < nsize; ++i) {
+        graphlab::parallel_for(0, nsize, [&](size_t i) {
           int offset = feat2workindex[batch.col_index[i]];
           if (offset >= 0) {
             this->UpdateHistCol(gpair, batch[i], info, tree,
                                 fset, offset,
                                 &thread_hist[omp_get_thread_num()]);
           }
-        }
+        });
       }
       for (size_t i = 0; i < this->qexpand.size(); ++i) {
         const int nid = this->qexpand[i];
@@ -409,8 +416,9 @@ class CQHistMaker: public HistMaker<TStats> {
         const ColBatch &batch = iter->Value();
         // start enumeration
         const bst_omp_uint nsize = static_cast<bst_omp_uint>(batch.size);
-        #pragma omp parallel for schedule(dynamic, 1)
-        for (bst_omp_uint i = 0; i < nsize; ++i) {
+        // #pragma omp parallel for schedule(dynamic, 1)
+        // for (bst_omp_uint i = 0; i < nsize; ++i) {
+        graphlab::parallel_for (0, nsize, [&](size_t i) {
           int offset = feat2workindex[batch.col_index[i]];
           if (offset >= 0) {
             this->UpdateSketchCol(gpair, batch[i], tree,
@@ -419,7 +427,7 @@ class CQHistMaker: public HistMaker<TStats> {
                                   batch[i].length == nrows,
                                   &thread_sketch[omp_get_thread_num()]);
           }
-        }
+        });
       }
       for (size_t i = 0; i < sketchs.size(); ++i) {
         utils::WXQuantileSketch<bst_float, bst_float>::SummaryContainer out;
@@ -663,8 +671,9 @@ class QuantileHistMaker: public HistMaker<TStats> {
       builder.InitBudget(tree.param.num_feature, nthread);
 
       const bst_omp_uint nbatch = static_cast<bst_omp_uint>(batch.size);
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < nbatch; ++i) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < nbatch; ++i) {
+      graphlab::parallel_for (0, nbatch, [&](size_t i) {
         RowBatch::Inst inst = batch[i];
         const bst_uint ridx = static_cast<bst_uint>(batch.base_rowid + i);
         int nid = this->position[ridx];
@@ -680,10 +689,11 @@ class QuantileHistMaker: public HistMaker<TStats> {
             }
           }
         }
-      }
+      });
       builder.InitStorage();
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < nbatch; ++i) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < nbatch; ++i) {
+      graphlab::parallel_for (0, nbatch, [&](size_t i) {
         RowBatch::Inst inst = batch[i];
         const bst_uint ridx = static_cast<bst_uint>(batch.base_rowid + i);
         const int nid = this->position[ridx];
@@ -694,17 +704,18 @@ class QuantileHistMaker: public HistMaker<TStats> {
                          omp_get_thread_num());
           }
         }
-      }
+      });
       // start putting things into sketch
       const bst_omp_uint nfeat = col_ptr.size() - 1;
-      #pragma omp parallel for schedule(dynamic, 1)
-      for (bst_omp_uint k = 0; k < nfeat; ++k) {
+      // #pragma omp parallel for schedule(dynamic, 1)
+      // for (bst_omp_uint k = 0; k < nfeat; ++k) {
+      graphlab::parallel_for (0, nfeat, [&](size_t k) {
         for (size_t i = col_ptr[k]; i < col_ptr[k+1]; ++i) {
           const SparseBatch::Entry &e = col_data[i];
           const int wid = this->node2workindex[e.index];
           sketchs[wid * tree.param.num_feature + k].Push(e.fvalue, gpair[e.index].hess);
         }
-      }
+      });
     }
     // setup maximum size
     unsigned max_size = this->param.max_sketch_size();

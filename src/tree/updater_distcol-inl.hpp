@@ -16,6 +16,10 @@
 #include "./updater_colmaker-inl.hpp"
 #include "./updater_prune-inl.hpp"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace tree {
 template<typename TStats>
@@ -54,8 +58,9 @@ class DistColMaker : public ColMaker<TStats> {
     inline void UpdatePosition(IFMatrix *p_fmat, const RegTree &tree) {
       const std::vector<bst_uint> &rowset = p_fmat->buffered_rowset();
       const bst_omp_uint ndata = static_cast<bst_omp_uint>(rowset.size());
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < ndata; ++i) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < ndata; ++i) {
+      graphlab::parallel_for (0, ndata, [&](size_t i) {
         const bst_uint ridx = rowset[i];
         int nid = this->DecodePosition(ridx);
         while (tree[nid].is_deleted()) {
@@ -63,7 +68,7 @@ class DistColMaker : public ColMaker<TStats> {
           utils::Assert(nid >=0, "distributed learning error");
         }
         this->position[ridx] = nid;
-      }
+      });
     }
     virtual const int* GetLeafPosition(void) const {
       return BeginPtr(this->position);
@@ -90,10 +95,11 @@ class DistColMaker : public ColMaker<TStats> {
       {
         bst_omp_uint ndata = static_cast<bst_omp_uint>(this->position.size());
         boolmap.resize(ndata);
-        #pragma omp parallel for schedule(static)
-        for (bst_omp_uint j = 0; j < ndata; ++j) {
+        // #pragma omp parallel for schedule(static)
+        // for (bst_omp_uint j = 0; j < ndata; ++j) {
+        graphlab::parallel_for (0, ndata, [&](size_t j) {
             boolmap[j] = 0;
-        }
+        });
       }
       utils::IIterator<ColBatch> *iter = p_fmat->ColIterator(fsplits);
       while (iter->Next()) {
@@ -102,8 +108,9 @@ class DistColMaker : public ColMaker<TStats> {
           ColBatch::Inst col = batch[i];
           const bst_uint fid = batch.col_index[i];
           const bst_omp_uint ndata = static_cast<bst_omp_uint>(col.length);
-          #pragma omp parallel for schedule(static)
-          for (bst_omp_uint j = 0; j < ndata; ++j) {
+          // #pragma omp parallel for schedule(static)
+          // for (bst_omp_uint j = 0; j < ndata; ++j) {
+          graphlab::parallel_for (0, ndata, [&](size_t j) {
             const bst_uint ridx = col[j].index;
             const float fvalue = col[j].fvalue;
             const int nid = this->DecodePosition(ridx);
@@ -114,7 +121,7 @@ class DistColMaker : public ColMaker<TStats> {
                 if (tree[nid].default_left()) boolmap[ridx] = 1;
               }
             }
-          }
+          });
         }
       }
 
@@ -124,8 +131,9 @@ class DistColMaker : public ColMaker<TStats> {
       const std::vector<bst_uint> &rowset = p_fmat->buffered_rowset();
       // get the new position
       const bst_omp_uint ndata = static_cast<bst_omp_uint>(rowset.size());
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < ndata; ++i) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < ndata; ++i) {
+      graphlab::parallel_for (0, ndata, [&](size_t i) {
         const bst_uint ridx = rowset[i];
         const int nid = this->DecodePosition(ridx);
         if (bitmap.Get(ridx)) {
@@ -136,7 +144,7 @@ class DistColMaker : public ColMaker<TStats> {
             this->SetEncodePosition(ridx, tree[nid].cleft());
           }
         }
-      }
+      });
     }
     // synchronize the best solution of each node
     virtual void SyncBestSolution(const std::vector<int> &qexpand) {

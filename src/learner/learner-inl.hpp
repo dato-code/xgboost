@@ -18,6 +18,11 @@
 #include "./evaluation.h"
 #include "../gbm/gbm.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
+
 namespace xgboost {
 /*! \brief namespace for learning algorithm */
 namespace learner {
@@ -514,25 +519,30 @@ class BoostLearner : public rabit::Serializable {
 
     // Rescale each leaf value
     if (rescale_constant != 1.0) {
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint j = 0; j < ndata; ++j) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint j = 0; j < ndata; ++j) {
+      //   preds[j] *= rescale_constant;
+      // }
+      graphlab::parallel_for(0, ndata, [&](size_t j) {
         preds[j] *= rescale_constant;
-      }
+      });
     }
 
     // add base margin
     if (data.info.base_margin.size() != 0) {
       utils::Check(preds.size() == data.info.base_margin.size(),
                    "base_margin.size does not match with prediction size");
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint j = 0; j < ndata; ++j) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint j = 0; j < ndata; ++j) {
+      graphlab::parallel_for(0, ndata, [&](size_t j) {
         preds[j] += data.info.base_margin[j];
-      }
+      });
     } else {
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint j = 0; j < ndata; ++j) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint j = 0; j < ndata; ++j) {
+      graphlab::parallel_for(0, ndata, [&](size_t j) {
         preds[j] += mparam.base_score;
-      }
+      });
     }
   }
 

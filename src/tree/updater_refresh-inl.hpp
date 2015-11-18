@@ -14,6 +14,10 @@
 #include "./updater.h"
 #include "../utils/omp.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace tree {
 /*! \brief pruner that prunes a tree after growing finishs */
@@ -36,16 +40,17 @@ class TreeRefresher: public IUpdater {
     std::vector< std::vector<TStats> > stemp;
     std::vector<RegTree::FVec> fvec_temp;
     // setup temp space for each thread
-    int nthread;
-    #pragma omp parallel
+    int nthread = graphlab::thread::cpu_count();
+    // #pragma omp parallel
     {
-      nthread = omp_get_num_threads();
+      // nthread = omp_get_num_threads();
+      // nthread = omp_get_num_threads();
     }
     fvec_temp.resize(nthread, RegTree::FVec());
     stemp.resize(nthread, std::vector<TStats>());
-    #pragma omp parallel
-    {
-      int tid = omp_get_thread_num();
+    // #pragma omp parallel
+    graphlab::in_parallel([&](size_t tid, size_t num_threads) {
+      // int tid = omp_get_thread_num();
       int num_nodes = 0;
       for (size_t i = 0; i < trees.size(); ++i) {
         num_nodes += trees[i]->param.num_nodes;
@@ -53,7 +58,7 @@ class TreeRefresher: public IUpdater {
       stemp[tid].resize(num_nodes, TStats(param));
       std::fill(stemp[tid].begin(), stemp[tid].end(), TStats(param));
       fvec_temp[tid].Init(trees[0]->param.num_feature);
-    }
+    });
     // if it is C++11, use lazy evaluation for Allreduce,
     // to gain speedup in recovery
 #if __cplusplus >= 201103L
@@ -68,10 +73,12 @@ class TreeRefresher: public IUpdater {
         utils::Check(batch.size < std::numeric_limits<unsigned>::max(),
                      "too large batch size ");
         const bst_omp_uint nbatch = static_cast<bst_omp_uint>(batch.size);
-        #pragma omp parallel for schedule(static)
-        for (bst_omp_uint i = 0; i < nbatch; ++i) {
+        // #pragma omp parallel for schedule(static)
+        // for (bst_omp_uint i = 0; i < nbatch; ++i) {
+        graphlab::parallel_for (0, nbatch, [&](size_t i) {
           RowBatch::Inst inst = batch[i];
-          const int tid = omp_get_thread_num();
+          // const int tid = omp_get_thread_num();
+          const int tid = graphlab::thread::thread_id();
           const bst_uint ridx = static_cast<bst_uint>(batch.base_rowid + i);
           RegTree::FVec &feats = fvec_temp[tid];
           feats.Fill(inst);
@@ -82,16 +89,17 @@ class TreeRefresher: public IUpdater {
             offset += trees[j]->param.num_nodes;
           }
           feats.Drop(inst);
-        }
+        });
       }
       // aggregate the statistics
-      int num_nodes = static_cast<int>(stemp[0].size());
-      #pragma omp parallel for schedule(static)
-      for (int nid = 0; nid < num_nodes; ++nid) {
+      const bst_omp_uint num_nodes = static_cast<bst_omp_uint>(stemp[0].size());
+      // #pragma omp parallel for schedule(static)
+      // for (int nid = 0; nid < num_nodes; ++nid) {
+      graphlab::parallel_for (0, num_nodes, [&](size_t nid) {
         for (int tid = 1; tid < nthread; ++tid) {
           stemp[0][nid].Add(stemp[tid][nid]);
         }
-      }
+      });
     };
 #if __cplusplus >= 201103L
     reducer.Allreduce(BeginPtr(stemp[0]), stemp[0].size(), lazy_get_stats);

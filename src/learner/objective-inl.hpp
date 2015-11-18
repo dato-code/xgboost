@@ -18,6 +18,10 @@
 #include "../utils/random.h"
 #include "../utils/omp.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace learner {
 /*! \brief defines functions to calculate some commonly used functions */
@@ -143,8 +147,9 @@ class RegLossObj : public IObjFunction {
     // start calculating gradient
     const unsigned nstep = static_cast<unsigned>(info.labels.size());
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size());
-    #pragma omp parallel for schedule(static)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
+    // #pragma omp parallel for schedule(static)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for(0, ndata, [&](size_t i) {
       const unsigned j = i % nstep;
       float p = loss.PredTransform(preds[i]);
       float w = info.GetWeight(j);
@@ -152,7 +157,7 @@ class RegLossObj : public IObjFunction {
       if (!loss.CheckLabel(info.labels[j])) label_correct = false;
       gpair[i] = bst_gpair(loss.FirstOrderGradient(p, info.labels[j]) * w,
                            loss.SecondOrderGradient(p, info.labels[j]) * w);
-    }
+    });
     utils::Check(label_correct, loss.CheckLabelErrorMsg());
   }
   virtual const char* DefaultEvalMetric(void) const {
@@ -161,10 +166,11 @@ class RegLossObj : public IObjFunction {
   virtual void PredTransform(std::vector<bst_float> *io_preds) {
     std::vector<bst_float> &preds = *io_preds;
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size());
-    #pragma omp parallel for schedule(static)
-    for (bst_omp_uint j = 0; j < ndata; ++j) {
+    // #pragma omp parallel for schedule(static)
+    // for (bst_omp_uint j = 0; j < ndata; ++j) {
+    graphlab::parallel_for (0, ndata, [&](size_t j) {
       preds[j] = loss.PredTransform(preds[j]);
-    }
+    });
   }
   virtual float ProbToMargin(float base_score) const {
     return loss.ProbToMargin(base_score);
@@ -204,8 +210,9 @@ class PoissonRegression : public IObjFunction {
     bool label_correct = true;
     // start calculating gradient
     const long ndata = static_cast<bst_omp_uint>(preds.size()); // NOLINT(*)
-    #pragma omp parallel for schedule(static)
-    for (long i = 0; i < ndata; ++i) { // NOLINT(*)
+    // #pragma omp parallel for schedule(static)
+    // for (long i = 0; i < ndata; ++i) { // NOLINT(*)
+    graphlab::parallel_for (0, ndata, [&](size_t i) { // NOLINT(*)
       float p = preds[i];
       float w = info.GetWeight(i);
       float y = info.labels[i];
@@ -215,17 +222,18 @@ class PoissonRegression : public IObjFunction {
       } else {
         label_correct = false;
       }
-    }
+    });
     utils::Check(label_correct,
                  "PoissonRegression: label must be nonnegative");
   }
   virtual void PredTransform(std::vector<bst_float> *io_preds) {
     std::vector<bst_float> &preds = *io_preds;
     const long ndata = static_cast<long>(preds.size()); // NOLINT(*)
-    #pragma omp parallel for schedule(static)
-    for (long j = 0; j < ndata; ++j) {  // NOLINT(*)
+    // #pragma omp parallel for schedule(static)
+    // for (long j = 0; j < ndata; ++j) {  // NOLINT(*)
+    graphlab::parallel_for (0, ndata, [&](size_t j) {  // NOLINT(*)
       preds[j] = std::exp(preds[j]);
-    }
+    });
   }
   virtual void EvalTransform(std::vector<bst_float> *io_preds) {
     PredTransform(io_preds);
@@ -266,11 +274,12 @@ class SoftmaxMultiClassObj : public IObjFunction {
     const unsigned nstep = static_cast<unsigned>(info.labels.size() * nclass);
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size() / nclass);
     int label_error = 0;
-    #pragma omp parallel
+    // #pragma omp parallel
     {
       std::vector<bst_float> rec(nclass);
-      #pragma omp for schedule(static)
-      for (bst_omp_uint i = 0; i < ndata; ++i) {
+      // #pragma omp for schedule(static)
+      // for (bst_omp_uint i = 0; i < ndata; ++i) {
+      graphlab::parallel_for(0, ndata, [&](size_t i) {
         for (int k = 0; k < nclass; ++k) {
           rec[k] = preds[i * nclass + k];
         }
@@ -290,7 +299,7 @@ class SoftmaxMultiClassObj : public IObjFunction {
             gpair[i * nclass + k] = bst_gpair(p* wt, h);
           }
         }
-      }
+      });
     }
     utils::Check(label_error >= 0 && label_error < nclass,
                  "SoftmaxMultiClassObj: label must be in [0, num_class),"\
@@ -313,11 +322,12 @@ class SoftmaxMultiClassObj : public IObjFunction {
     std::vector<bst_float> tmp;
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size()/nclass);
     if (prob == 0) tmp.resize(ndata);
-    #pragma omp parallel
+    // #pragma omp parallel
     {
       std::vector<bst_float> rec(nclass);
-      #pragma omp for schedule(static)
-      for (bst_omp_uint j = 0; j < ndata; ++j) {
+      // #pragma omp for schedule(static)
+      // for (bst_omp_uint j = 0; j < ndata; ++j) {
+      graphlab::parallel_for(0, ndata, [&](size_t j) {
         for (int k = 0; k < nclass; ++k) {
           rec[k] = preds[j * nclass + k];
         }
@@ -329,7 +339,7 @@ class SoftmaxMultiClassObj : public IObjFunction {
             preds[j * nclass + k] = rec[k];
           }
         }
-      }
+      });
     }
     if (prob == 0) preds = tmp;
   }
@@ -366,7 +376,7 @@ class LambdaRankObj : public IObjFunction {
     utils::Check(gptr.size() != 0 && gptr.back() == info.labels.size(),
                  "group structure not consistent with #rows");
     const bst_omp_uint ngroup = static_cast<bst_omp_uint>(gptr.size() - 1);
-    #pragma omp parallel
+    // #pragma omp parallel
     {
       // parall construct, declare random number generator here, so that each
       // thread use its own random number generator, seed by thread id and current iteration
@@ -374,8 +384,9 @@ class LambdaRankObj : public IObjFunction {
       std::vector<LambdaPair> pairs;
       std::vector<ListEntry>  lst;
       std::vector< std::pair<float, unsigned> > rec;
-      #pragma omp for schedule(static)
-      for (bst_omp_uint k = 0; k < ngroup; ++k) {
+      // #pragma omp for schedule(static)
+      // for (bst_omp_uint k = 0; k < ngroup; ++k) {
+      graphlab::parallel_for (0, ngroup, [&](size_t k) {
         lst.clear(); pairs.clear();
         for (unsigned j = gptr[k]; j < gptr[k+1]; ++j) {
           lst.push_back(ListEntry(preds[j], info.labels[j], j));
@@ -428,7 +439,7 @@ class LambdaRankObj : public IObjFunction {
           gpair[neg.rindex].grad -= g * w;
           gpair[neg.rindex].hess += 2.0f * w * h;
         }
-      }
+      });
     }
   }
   virtual const char* DefaultEvalMetric(void) const {

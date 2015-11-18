@@ -14,6 +14,10 @@
 #include "../utils/random.h"
 #include "../utils/quantile.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace tree {
 /*!
@@ -115,10 +119,11 @@ class BaseMaker: public IUpdater {
   /*! \brief get number of omp thread in current context */
   inline static int get_nthread(void) {
     int nthread;
-    #pragma omp parallel
-    {
-      nthread = omp_get_num_threads();
-    }
+    // #pragma omp parallel
+    // {
+    //   nthread = omp_get_num_threads();
+    // }
+    nthread = graphlab::thread::cpu_count();
     return nthread;
   }
   //  ------class member helpers---------
@@ -207,8 +212,9 @@ class BaseMaker: public IUpdater {
     // so that they are ignored in future statistics collection
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(rowset.size());
 
-    #pragma omp parallel for schedule(static)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
+    // #pragma omp parallel for schedule(static)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for (0, ndata, [&](size_t i) {
       const bst_uint ridx = rowset[i];
       const int nid = this->DecodePosition(ridx);
       if (tree[nid].is_leaf()) {
@@ -224,7 +230,7 @@ class BaseMaker: public IUpdater {
           this->SetEncodePosition(ridx, tree[nid].cright());
         }
       }
-    }
+    });
   }
   /*!
    * \brief this is helper function uses column based data structure,
@@ -253,8 +259,9 @@ class BaseMaker: public IUpdater {
         ColBatch::Inst col = batch[i];
         const bst_uint fid = batch.col_index[i];
         const bst_omp_uint ndata = static_cast<bst_omp_uint>(col.length);
-        #pragma omp parallel for schedule(static)
-        for (bst_omp_uint j = 0; j < ndata; ++j) {
+        // #pragma omp parallel for schedule(static)
+        // for (bst_omp_uint j = 0; j < ndata; ++j) {
+        graphlab::parallel_for (0, ndata, [&](size_t j) {
           const bst_uint ridx = col[j].index;
           const float fvalue = col[j].fvalue;
           const int nid = this->DecodePosition(ridx);
@@ -266,11 +273,11 @@ class BaseMaker: public IUpdater {
               this->SetEncodePosition(ridx, tree[nid].cright());
             }
           }
-        }
+        });
       }
     }
   }
-  /*! \brief helper function to get statistics from a tree */
+  /*! brief helper function to get statistics from a tree */
   template<typename TStats>
   inline void GetNodeStats(const std::vector<bst_gpair> &gpair,
                            const IFMatrix &fmat,
@@ -281,7 +288,7 @@ class BaseMaker: public IUpdater {
     std::vector< std::vector<TStats> > &thread_temp = *p_thread_temp;
     thread_temp.resize(this->get_nthread());
     p_node_stats->resize(tree.param.num_nodes);
-    #pragma omp parallel
+    // #pragma omp parallel
     {
       const int tid = omp_get_thread_num();
       thread_temp[tid].resize(tree.param.num_nodes, TStats(param));
@@ -293,15 +300,16 @@ class BaseMaker: public IUpdater {
     const std::vector<bst_uint> &rowset = fmat.buffered_rowset();
     // setup position
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(rowset.size());
-    #pragma omp parallel for schedule(static)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
+    // #pragma omp parallel for schedule(static)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for (0, ndata, [&](size_t i) {
       const bst_uint ridx = rowset[i];
       const int nid = position[ridx];
       const int tid = omp_get_thread_num();
       if (nid >= 0) {
         thread_temp[tid][nid].Add(gpair, info, ridx);
       }
-    }
+    });
     // sum the per thread statistics together
     for (size_t j = 0; j < qexpand.size(); ++j) {
       const int nid = qexpand[j];

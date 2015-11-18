@@ -12,6 +12,10 @@
 #include "./utils.h"
 #include "./omp.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace utils {
 /*! \brief bit map that contains set of bit indicators */
@@ -44,15 +48,16 @@ struct BitMap {
     this->Resize(vec.size());
     // parallel over the full cases
     bst_omp_uint nsize = static_cast<bst_omp_uint>(vec.size() / 32);
-    #pragma omp parallel for schedule(static)
-    for (bst_omp_uint i = 0; i < nsize; ++i) {
+    // #pragma omp parallel for schedule(static)
+    // for (bst_omp_uint i = 0; i < nsize; ++i) {
+    graphlab::parallel_for(0, nsize, [&](size_t i) {
       uint32_t res = 0;
       for (int k = 0; k < 32; ++k) {
         int bit = vec[(i << 5) | k];
         res |= (bit << k);
       }
       data[i] = res;
-    }
+    });
     if (nsize != vec.size()) data.back() = 0;
     for (size_t i = nsize; i < vec.size(); ++i) {
       if (vec[i]) this->SetTrue(i);

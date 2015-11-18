@@ -15,6 +15,10 @@
 #include "../utils/omp.h"
 #include "../utils/random.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace tree {
 /*! \brief colunwise update to construct a tree */
@@ -164,9 +168,10 @@ class ColMaker: public IUpdater {
       }
       {
         // setup temp space for each thread
-        #pragma omp parallel
+        // #pragma omp parallel
         {
-          this->nthread = omp_get_num_threads();
+          // this->nthread = omp_get_num_threads();
+          this->nthread = graphlab::thread::cpu_count();
         }
         // reserve a small space
         stemp.clear();
@@ -203,13 +208,16 @@ class ColMaker: public IUpdater {
       const std::vector<bst_uint> &rowset = fmat.buffered_rowset();
       // setup position
       const bst_omp_uint ndata = static_cast<bst_omp_uint>(rowset.size());
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < ndata; ++i) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < ndata; ++i) {
+      graphlab::parallel_for (0, ndata, [&](size_t i) {
         const bst_uint ridx = rowset[i];
-        const int tid = omp_get_thread_num();
-        if (position[ridx] < 0) continue;
+        // const int tid = omp_get_thread_num();
+        const int tid = graphlab::thread::thread_id();
+        // if (position[ridx] < 0) continue;
+        if (position[ridx] < 0) return;
         stemp[tid][position[ridx]].stats.Add(gpair, info, ridx);
-      }
+      });
       // sum the per thread statistics together
       for (size_t j = 0; j < qexpand.size(); ++j) {
         const int nid = qexpand[j];
@@ -248,9 +256,10 @@ class ColMaker: public IUpdater {
       bool need_forward = param.need_forward_search(fmat.GetColDensity(fid), ind);
       bool need_backward = param.need_backward_search(fmat.GetColDensity(fid), ind);
       const std::vector<int> &qexpand = qexpand_;
-      #pragma omp parallel
+      // #pragma omp parallel
       {
-        const int tid = omp_get_thread_num();
+        // const int tid = omp_get_thread_num();
+        const int tid = graphlab::thread::thread_id();
         std::vector<ThreadEntry> &temp = stemp[tid];
         // cleanup temp statistics
         for (size_t j = 0; j < qexpand.size(); ++j) {
@@ -273,8 +282,9 @@ class ColMaker: public IUpdater {
       }
       // start collecting the partial sum statistics
       bst_omp_uint nnode = static_cast<bst_omp_uint>(qexpand.size());
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint j = 0; j < nnode; ++j) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint j = 0; j < nnode; ++j) {
+      graphlab::parallel_for (0, nnode, [&](size_t j) {
         const int nid = qexpand[j];
         TStats sum(param), tmp(param), c(param);
         for (int tid = 0; tid < nthread; ++tid) {
@@ -329,9 +339,9 @@ class ColMaker: public IUpdater {
             e.best.Update(loss_chg, fid, e.last_fvalue + rt_eps, true);
           }
         }
-      }
+      });
       // rescan, generate candidate split
-      #pragma omp parallel
+      // #pragma omp parallel
       {
         TStats c(param), cright(param);
         const int tid = omp_get_thread_num();
@@ -546,18 +556,20 @@ class ColMaker: public IUpdater {
                                 const BoosterInfo &info) {
       // start enumeration
       const bst_omp_uint nsize = static_cast<bst_omp_uint>(batch.size);
-      #if defined(_OPENMP)
-      const int batch_size = std::max(static_cast<int>(nsize / this->nthread / 32), 1);
-      #endif
+      // #if defined(_OPENMP)
+      // const int batch_size = std::max(static_cast<int>(nsize / this->nthread / 32), 1);
+      // #endif
       int poption = param.parallel_option;
       if (poption == 2) {
         poption = static_cast<int>(nsize) * 2 < nthread ? 1 : 0;
       }
       if (poption == 0) {
-        #pragma omp parallel for schedule(dynamic, batch_size)
-        for (bst_omp_uint i = 0; i < nsize; ++i) {
+        // #pragma omp parallel for schedule(dynamic, batch_size)
+        // for (bst_omp_uint i = 0; i < nsize; ++i) {
+        graphlab::parallel_for (0, nsize, [&](size_t i) {
           const bst_uint fid = batch.col_index[i];
-          const int tid = omp_get_thread_num();
+          // const int tid = omp_get_thread_num();
+          const int tid = graphlab::thread::thread_id();
           const ColBatch::Inst c = batch[i];
           const bool ind = c.length != 0 && c.data[0].fvalue == c.data[c.length - 1].fvalue;
           if (param.need_forward_search(fmat.GetColDensity(fid), ind)) {
@@ -568,7 +580,7 @@ class ColMaker: public IUpdater {
             this->EnumerateSplit(c.data + c.length - 1, c.data - 1, -1,
                                  fid, gpair, info, stemp[tid]);
           }
-        }
+        });
       } else {
         for (bst_omp_uint i = 0; i < nsize; ++i) {
           this->ParallelFindSplit(batch[i], batch.col_index[i],
@@ -624,8 +636,9 @@ class ColMaker: public IUpdater {
       // so that they are ignored in future statistics collection
       const bst_omp_uint ndata = static_cast<bst_omp_uint>(rowset.size());
 
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < ndata; ++i) {
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < ndata; ++i) {
+      graphlab::parallel_for (0, ndata, [&](size_t i) {
         const bst_uint ridx = rowset[i];
         if (ridx >= position.size()) {
           utils::Printf("ridx exceed bound\n");
@@ -644,7 +657,7 @@ class ColMaker: public IUpdater {
             this->SetEncodePosition(ridx, tree[nid].cright());
           }
         }
-      }
+      });
     }
     // customization part
     // synchronize the best solution of each node
@@ -677,8 +690,9 @@ class ColMaker: public IUpdater {
           ColBatch::Inst col = batch[i];
           const bst_uint fid = batch.col_index[i];
           const bst_omp_uint ndata = static_cast<bst_omp_uint>(col.length);
-          #pragma omp parallel for schedule(static)
-          for (bst_omp_uint j = 0; j < ndata; ++j) {
+          // #pragma omp parallel for schedule(static)
+          // for (bst_omp_uint j = 0; j < ndata; ++j) {
+          graphlab::parallel_for (0, ndata, [&](size_t j) {
             const bst_uint ridx = col[j].index;
             const int nid = this->DecodePosition(ridx);
             const float fvalue = col[j].fvalue;
@@ -690,7 +704,7 @@ class ColMaker: public IUpdater {
                 this->SetEncodePosition(ridx, tree[nid].cright());
               }
             }
-          }
+          });
         }
       }
     }

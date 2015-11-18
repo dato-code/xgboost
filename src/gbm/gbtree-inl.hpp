@@ -15,6 +15,10 @@
 #include "../utils/omp.h"
 #include "../tree/updater.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace gbm {
 /*!
@@ -117,10 +121,12 @@ class GBTree : public IGradBooster {
       std::vector<bst_gpair> tmp(gpair.size()/ngroup);
       for (int gid = 0; gid < ngroup; ++gid) {
         bst_omp_uint nsize = static_cast<bst_omp_uint>(tmp.size());
-        #pragma omp parallel for schedule(static)
-        for (bst_omp_uint i = 0; i < nsize; ++i) {
+        //
+        // #pragma omp parallel for schedule(static)
+        // for (bst_omp_uint i = 0; i < nsize; ++i) {
+        graphlab::parallel_for(0, nsize, [&](size_t i) {
           tmp[i] = gpair[i * ngroup + gid];
-        }
+        });
         new_trees.push_back(BoostNewTrees(tmp, p_fmat, buffer_offset, info, gid));
       }
     }
@@ -133,12 +139,13 @@ class GBTree : public IGradBooster {
                        const BoosterInfo &info,
                        std::vector<bst_float> *out_preds,
                        unsigned ntree_limit = 0) {
-    int nthread;
-    #pragma omp parallel
-    {
-      nthread = omp_get_num_threads();
-    }
-    InitThreadTemp(nthread);
+    // int nthread;
+    // #pragma omp parallel
+    // {
+    //   nthread = omp_get_num_threads();
+    // }
+    // InitThreadTemp(nthread);
+    InitThreadTemp(graphlab::thread::cpu_count());
     auto &preds = *out_preds;
     const size_t stride = info.num_row * mparam.num_output_group;
     preds.resize(stride * (mparam.size_leaf_vector+1));
@@ -149,9 +156,11 @@ class GBTree : public IGradBooster {
       const RowBatch &batch = iter->Value();
       // parallel over local batch
       const bst_omp_uint nsize = static_cast<bst_omp_uint>(batch.size);
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < nsize; ++i) {
-        const int tid = omp_get_thread_num();
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < nsize; ++i) {
+      graphlab::parallel_for (0, nsize, [&](size_t i) {
+        // const int tid = omp_get_thread_num();
+        const int tid = graphlab::thread::thread_id();
         tree::RegTree::FVec &feats = thread_temp[tid];
         int64_t ridx = static_cast<int64_t>(batch.base_rowid + i);
         utils::Assert(static_cast<size_t>(ridx) < info.num_row, "data row index exceed bound");
@@ -163,7 +172,7 @@ class GBTree : public IGradBooster {
                      &preds[ridx * mparam.num_output_group + gid], stride,
                      ntree_limit);
         }
-      }
+      });
     }
   }
   virtual void Predict(const SparseBatch::Inst &inst,
@@ -186,12 +195,13 @@ class GBTree : public IGradBooster {
                            const BoosterInfo &info,
                            std::vector<bst_float> *out_preds,
                            unsigned ntree_limit) {
-    int nthread;
-    #pragma omp parallel
-    {
-      nthread = omp_get_num_threads();
-    }
-    InitThreadTemp(nthread);
+    // int nthread;
+    // #pragma omp parallel
+    // {
+    //   nthread = omp_get_num_threads();
+    // }
+    // InitThreadTemp(nthread);
+    InitThreadTemp(graphlab::thread::cpu_count());
     this->PredPath(p_fmat, info, out_preds, ntree_limit);
   }
   virtual std::vector<std::string> DumpModel(const utils::FeatMap& fmap, int option) {
@@ -289,8 +299,9 @@ class GBTree : public IGradBooster {
                                      const int* leaf_position) {
     const std::vector<bst_uint> &rowset = p_fmat->buffered_rowset();
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(rowset.size());
-    #pragma omp parallel for schedule(static)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
+    // #pragma omp parallel for schedule(static)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for(0, ndata, [&](size_t i) {
       const bst_uint ridx = rowset[i];
       const int64_t bid = mparam.BufferOffset(buffer_offset + ridx, bst_group);
       const int tid = leaf_position[ridx];
@@ -301,7 +312,7 @@ class GBTree : public IGradBooster {
         pred_buffer[bid + i + 1] += new_tree.leafvec(tid)[i];
       }
       pred_counter[bid] += tparam.num_parallel_tree;
-    }
+    });
   }
   // make a prediction for a single instance
   inline void Pred(const RowBatch::Inst &inst,
@@ -371,9 +382,11 @@ class GBTree : public IGradBooster {
       const RowBatch &batch = iter->Value();
       // parallel over local batch
       const bst_omp_uint nsize = static_cast<bst_omp_uint>(batch.size);
-      #pragma omp parallel for schedule(static)
-      for (bst_omp_uint i = 0; i < nsize; ++i) {
-        const int tid = omp_get_thread_num();
+      // #pragma omp parallel for schedule(static)
+      // for (bst_omp_uint i = 0; i < nsize; ++i) {
+      graphlab::parallel_for(0, nsize, [&](size_t i) {
+        // const int tid = omp_get_thread_num();
+        const int tid = graphlab::thread::thread_id();
         size_t ridx = static_cast<size_t>(batch.base_rowid + i);
         tree::RegTree::FVec &feats = thread_temp[tid];
         feats.Fill(batch[i]);
@@ -382,7 +395,7 @@ class GBTree : public IGradBooster {
           preds[ridx * ntree_limit + j] = static_cast<float>(tid);
         }
         feats.Drop(batch[i]);
-      }
+      });
     }
   }
   // init thread buffers

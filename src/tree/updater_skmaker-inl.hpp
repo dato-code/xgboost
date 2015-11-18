@@ -14,6 +14,10 @@
 #include "../utils/quantile.h"
 #include "./updater_basemaker-inl.hpp"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace tree {
 class SketchMaker: public BaseMaker {
@@ -150,14 +154,17 @@ class SketchMaker: public BaseMaker {
       const ColBatch &batch = iter->Value();
       // start enumeration
       const bst_omp_uint nsize = static_cast<bst_omp_uint>(batch.size);
-      #pragma omp parallel for schedule(dynamic, 1)
-      for (bst_omp_uint i = 0; i < nsize; ++i) {
+      // #pragma omp parallel for schedule(dynamic, 1)
+      // for (bst_omp_uint i = 0; i < nsize; ++i) {
+      graphlab::parallel_for (0, nsize, [&](size_t i) {
+        // int tid = omp_get_thread_num();
+        int tid = graphlab::thread::thread_id();
         this->UpdateSketchCol(gpair, batch[i], tree,
                               node_stats,
                               batch.col_index[i],
                               batch[i].length == nrows,
-                              &thread_sketch[omp_get_thread_num()]);
-      }
+                              &thread_sketch[tid]);
+      });
     }
     // setup maximum size
     unsigned max_size = param.max_sketch_size();
@@ -275,8 +282,9 @@ class SketchMaker: public BaseMaker {
     // get the best split condition for each node
     std::vector<SplitEntry> sol(qexpand.size());
     bst_omp_uint nexpand = static_cast<bst_omp_uint>(qexpand.size());
-    #pragma omp parallel for schedule(dynamic, 1)
-    for (bst_omp_uint wid = 0; wid < nexpand; ++wid) {
+    // #pragma omp parallel for schedule(dynamic, 1)
+    // for (bst_omp_uint wid = 0; wid < nexpand; ++wid) {
+    graphlab::parallel_for (0, nexpand, [&](size_t wid) {
       const int nid = qexpand[wid];
       utils::Assert(node2workindex[nid] == static_cast<int>(wid),
                     "node2workindex inconsistent");
@@ -288,7 +296,7 @@ class SketchMaker: public BaseMaker {
                        summary_array[base + 2],
                        node_stats[nid], fid, &best);
       }
-    }
+    });
     // get the best result, we can synchronize the solution
     for (bst_omp_uint wid = 0; wid < nexpand; ++wid) {
       const int nid = qexpand[wid];
