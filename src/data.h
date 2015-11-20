@@ -27,9 +27,9 @@ typedef float bst_float;
 typedef double bst_float;
 #endif
 
-const float rt_eps = 1e-5f;
+const bst_float rt_eps = 1e-5f;
 // min gap between feature values to allow a split happen
-const float rt_2eps = rt_eps * 2.0f;
+const bst_float rt_2eps = rt_eps * 2.0f;
 
 /*! \brief gradient statistics pair usually needed in gradient boosting */
 struct bst_gpair {

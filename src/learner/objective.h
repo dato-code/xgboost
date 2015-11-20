@@ -56,7 +56,7 @@ class IObjFunction{
    * used by gradient boosting
    * \return transformed value
    */
-  virtual float ProbToMargin(float base_score) const {
+  virtual bst_float ProbToMargin(float base_score) const {
     return base_score;
   }
 };

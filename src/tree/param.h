@@ -17,36 +17,36 @@ namespace tree {
 /*! \brief training parameters for regression tree */
 struct TrainParam{
   // learning step size for a time
-  float learning_rate;
+  bst_float learning_rate;
   // minimum loss change required for a split
-  float min_split_loss;
+  bst_float min_split_loss;
   // maximum depth of a tree
   int max_depth;
   //----- the rest parameters are less important ----
   // minimum amount of hessian(weight) allowed in a child
-  float min_child_weight;
+  bst_float min_child_weight;
   // L2 regularization factor
-  float reg_lambda;
+  bst_float reg_lambda;
   // L1 regularization factor
-  float reg_alpha;
+  bst_float reg_alpha;
   // default direction choice
   int default_direction;
   // maximum delta update we can add in weight estimation
   // this parameter can be used to stablize update
   // default=0 means no constraint on weight delta
-  float max_delta_step;
+  bst_float max_delta_step;
   // whether we want to do subsample
-  float subsample;
+  bst_float subsample;
   // whether to subsample columns each split, in each level
-  float colsample_bylevel;
+  bst_float colsample_bylevel;
   // whether to subsample columns during tree construction
-  float colsample_bytree;
+  bst_float colsample_bytree;
   // speed optimization for dense column
-  float opt_dense_col;
+  bst_float opt_dense_col;
   // accuracy of sketch
-  float sketch_eps;
+  bst_float sketch_eps;
   // accuracy of sketch
-  float sketch_ratio;
+  bst_float sketch_ratio;
   // leaf vector size
   int size_leaf_vector;
   // option for parallelization
@@ -86,22 +86,22 @@ struct TrainParam{
   inline void SetParam(const char *name, const char *val) {
     using namespace std;
     // sync-names
-    if (!strcmp(name, "gamma")) min_split_loss = static_cast<float>(atof(val));
-    if (!strcmp(name, "eta")) learning_rate = static_cast<float>(atof(val));
-    if (!strcmp(name, "lambda")) reg_lambda = static_cast<float>(atof(val));
-    if (!strcmp(name, "alpha")) reg_alpha = static_cast<float>(atof(val));
-    if (!strcmp(name, "learning_rate")) learning_rate = static_cast<float>(atof(val));
-    if (!strcmp(name, "min_child_weight")) min_child_weight = static_cast<float>(atof(val));
-    if (!strcmp(name, "min_split_loss")) min_split_loss = static_cast<float>(atof(val));
-    if (!strcmp(name, "max_delta_step")) max_delta_step = static_cast<float>(atof(val));
-    if (!strcmp(name, "reg_lambda")) reg_lambda = static_cast<float>(atof(val));
-    if (!strcmp(name, "reg_alpha")) reg_alpha = static_cast<float>(atof(val));
-    if (!strcmp(name, "subsample")) subsample = static_cast<float>(atof(val));
-    if (!strcmp(name, "colsample_bylevel")) colsample_bylevel = static_cast<float>(atof(val));
-    if (!strcmp(name, "colsample_bytree")) colsample_bytree  = static_cast<float>(atof(val));
-    if (!strcmp(name, "sketch_eps")) sketch_eps  = static_cast<float>(atof(val));
-    if (!strcmp(name, "sketch_ratio")) sketch_ratio  = static_cast<float>(atof(val));
-    if (!strcmp(name, "opt_dense_col")) opt_dense_col = static_cast<float>(atof(val));
+    if (!strcmp(name, "gamma")) min_split_loss = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "eta")) learning_rate = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "lambda")) reg_lambda = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "alpha")) reg_alpha = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "learning_rate")) learning_rate = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "min_child_weight")) min_child_weight = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "min_split_loss")) min_split_loss = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "max_delta_step")) max_delta_step = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "reg_lambda")) reg_lambda = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "reg_alpha")) reg_alpha = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "subsample")) subsample = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "colsample_bylevel")) colsample_bylevel = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "colsample_bytree")) colsample_bytree  = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "sketch_eps")) sketch_eps  = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "sketch_ratio")) sketch_ratio  = static_cast<bst_float>(atof(val));
+    if (!strcmp(name, "opt_dense_col")) opt_dense_col = static_cast<bst_float>(atof(val));
     if (!strcmp(name, "size_leaf_vector")) size_leaf_vector = atoi(val);
     if (!strcmp(name, "cache_opt")) cache_opt = atoi(val);
     if (!strcmp(name, "max_depth")) max_depth = atoi(val);
@@ -159,12 +159,12 @@ struct TrainParam{
     return dw;
   }
   /*! \brief whether need forward small to big search: default right */
-  inline bool need_forward_search(float col_density, bool indicator) const {
+  inline bool need_forward_search(bst_float col_density, bool indicator) const {
     return this->default_direction == 2 ||
         (default_direction == 0 && (col_density < opt_dense_col) && !indicator);
   }
   /*! \brief whether need backward big to small search: default left */
-  inline bool need_backward_search(float col_density, bool indicator) const {
+  inline bool need_backward_search(bst_float col_density, bool indicator) const {
     return this->default_direction != 2;
   }
   /*! \brief given the loss change, whether we need to invode prunning */
@@ -358,7 +358,7 @@ struct SplitEntry{
   /*! \brief split index */
   unsigned sindex;
   /*! \brief split value */
-  float split_value;
+  bst_float split_value;
   /*! \brief constructor */
   SplitEntry(void) : loss_chg(0.0f), sindex(0), split_value(0.0f) {}
   /*!
@@ -399,7 +399,7 @@ struct SplitEntry{
    * \return whether the proposed split is better and can replace current split
    */
   inline bool Update(bst_float new_loss_chg, unsigned split_index,
-                     float new_split_value, bool default_left) {
+                     bst_float new_split_value, bool default_left) {
     if (this->NeedReplace(new_loss_chg, split_index)) {
       this->loss_chg = new_loss_chg;
       if (default_left) split_index |= (1U << 31);

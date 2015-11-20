@@ -38,7 +38,7 @@ struct LossType {
    * \param x linear sum of boosting ensemble
    * \return transformed prediction
    */
-  inline float PredTransform(float x) const {
+  inline bst_float PredTransform(bst_float x) const {
     switch (loss_type) {
       case kLogisticRaw:
       case kLinearSquare: return x;
@@ -50,7 +50,7 @@ struct LossType {
   /*!
    * \brief check if label range is valid
    */
-  inline bool CheckLabel(float x) const {
+  inline bool CheckLabel(bst_float x) const {
     if (loss_type != kLinearSquare) {
       return x >= 0.0f && x <= 1.0f;
     }
@@ -72,7 +72,7 @@ struct LossType {
    * \param label true label
    * \return first order gradient
    */
-  inline float FirstOrderGradient(float predt, float label) const {
+  inline bst_float FirstOrderGradient(bst_float predt, bst_float label) const {
     switch (loss_type) {
       case kLinearSquare: return predt - label;
       case kLogisticRaw: predt = 1.0f / (1.0f + std::exp(-predt));
@@ -87,9 +87,9 @@ struct LossType {
    * \param label true label
    * \return second order gradient
    */
-  inline float SecondOrderGradient(float predt, float label) const {
+  inline bst_float SecondOrderGradient(bst_float predt, bst_float label) const {
     // cap second order gradient to postive value
-    const float eps = 1e-16f;
+    const bst_float eps = 1e-16f;
     switch (loss_type) {
       case kLinearSquare: return 1.0f;
       case kLogisticRaw: predt = 1.0f / (1.0f + std::exp(-predt));
@@ -101,7 +101,7 @@ struct LossType {
   /*!
    * \brief transform probability value back to margin
    */
-  inline float ProbToMargin(float base_score) const {
+  inline bst_float ProbToMargin(bst_float base_score) const {
     if (loss_type == kLogisticRaw ||
         loss_type == kLogisticClassify ||
         loss_type == kLogisticNeglik ) {
@@ -130,7 +130,7 @@ class RegLossObj : public IObjFunction {
   virtual void SetParam(const char *name, const char *val) {
     using namespace std;
     if (!strcmp("scale_pos_weight", name)) {
-      scale_pos_weight = static_cast<float>(atof(val));
+      scale_pos_weight = static_cast<bst_float>(atof(val));
     }
   }
   virtual void GetGradient(const std::vector<bst_float> &preds,
@@ -151,8 +151,8 @@ class RegLossObj : public IObjFunction {
     // for (bst_omp_uint i = 0; i < ndata; ++i) {
     graphlab::parallel_for(0, ndata, [&](size_t i) {
       const unsigned j = i % nstep;
-      float p = loss.PredTransform(preds[i]);
-      float w = info.GetWeight(j);
+      bst_float p = loss.PredTransform(preds[i]);
+      bst_float w = info.GetWeight(j);
       if (info.labels[j] == 1.0f) w *= scale_pos_weight;
       if (!loss.CheckLabel(info.labels[j])) label_correct = false;
       gpair[i] = bst_gpair(loss.FirstOrderGradient(p, info.labels[j]) * w,
@@ -172,12 +172,12 @@ class RegLossObj : public IObjFunction {
       preds[j] = loss.PredTransform(preds[j]);
     });
   }
-  virtual float ProbToMargin(float base_score) const {
+  virtual bst_float ProbToMargin(bst_float base_score) const {
     return loss.ProbToMargin(base_score);
   }
 
  protected:
-  float scale_pos_weight;
+  bst_float scale_pos_weight;
   LossType loss;
 };
 
@@ -192,7 +192,7 @@ class PoissonRegression : public IObjFunction {
   virtual void SetParam(const char *name, const char *val) {
     using namespace std;
     if (!strcmp("max_delta_step", name)) {
-      max_delta_step = static_cast<float>(atof(val));
+      max_delta_step = static_cast<bst_float>(atof(val));
     }
   }
   virtual void GetGradient(const std::vector<bst_float> &preds,
@@ -213,9 +213,9 @@ class PoissonRegression : public IObjFunction {
     // #pragma omp parallel for schedule(static)
     // for (long i = 0; i < ndata; ++i) { // NOLINT(*)
     graphlab::parallel_for (0, ndata, [&](size_t i) { // NOLINT(*)
-      float p = preds[i];
-      float w = info.GetWeight(i);
-      float y = info.labels[i];
+      bst_float p = preds[i];
+      bst_float w = info.GetWeight(i);
+      bst_float y = info.labels[i];
       if (y >= 0.0f) {
         gpair[i] = bst_gpair((std::exp(p) - y) * w,
                              std::exp(p + max_delta_step) * w);
@@ -238,7 +238,7 @@ class PoissonRegression : public IObjFunction {
   virtual void EvalTransform(std::vector<bst_float> *io_preds) {
     PredTransform(io_preds);
   }
-  virtual float ProbToMargin(float base_score) const {
+  virtual bst_float ProbToMargin(bst_float base_score) const {
     return std::log(base_score);
   }
   virtual const char* DefaultEvalMetric(void) const {
@@ -246,7 +246,7 @@ class PoissonRegression : public IObjFunction {
   }
 
  private:
-  float max_delta_step;
+  bst_float max_delta_step;
 };
 
 // softmax multi-class classification
@@ -289,10 +289,10 @@ class SoftmaxMultiClassObj : public IObjFunction {
     //     if (label < 0 || label >= nclass)  {
     //       label_error = label; label = 0;
     //     }
-    //     const float wt = info.GetWeight(j);
+    //     const bst_float wt = info.GetWeight(j);
     //     for (int k = 0; k < nclass; ++k) {
-    //       float p = rec[k];
-    //       const float h = 2.0f * p * (1.0f - p) * wt;
+    //       bst_float p = rec[k];
+    //       const bst_float h = 2.0f * p * (1.0f - p) * wt;
     //       if (label == k) {
     //         gpair[i * nclass + k] = bst_gpair((p - 1.0f) * wt, h);
     //       } else {
@@ -317,10 +317,10 @@ class SoftmaxMultiClassObj : public IObjFunction {
         if (label < 0 || label >= nclass)  {
           label_error = label; label = 0;
         }
-        const float wt = info.GetWeight(j);
+        const bst_float wt = info.GetWeight(j);
         for (int k = 0; k < nclass; ++k) {
-          float p = rec[k];
-          const float h = 2.0f * p * (1.0f - p) * wt;
+          bst_float p = rec[k];
+          const bst_float h = 2.0f * p * (1.0f - p) * wt;
           if (label == k) {
             gpair[i * nclass + k] = bst_gpair((p - 1.0f) * wt, h);
           } else {
@@ -360,7 +360,7 @@ class SoftmaxMultiClassObj : public IObjFunction {
     //       rec[k] = preds[j * nclass + k];
     //     }
     //     if (prob == 0) {
-    //       tmp[j] = static_cast<float>(FindMaxIndex(rec));
+    //       tmp[j] = static_cast<bst_float>(FindMaxIndex(rec));
     //     } else {
     //       Softmax(&rec);
     //       for (int k = 0; k < nclass; ++k) {
@@ -380,7 +380,7 @@ class SoftmaxMultiClassObj : public IObjFunction {
           rec[k] = preds[j * nclass + k];
         }
         if (prob == 0) {
-          tmp[j] = static_cast<float>(FindMaxIndex(rec));
+          tmp[j] = static_cast<bst_float>(FindMaxIndex(rec));
         } else {
           Softmax(&rec);
           for (int k = 0; k < nclass; ++k) {
@@ -408,7 +408,7 @@ class LambdaRankObj : public IObjFunction {
   virtual void SetParam(const char *name, const char *val) {
     using namespace std;
     if (!strcmp( "loss_type", name )) loss.loss_type = atoi(val);
-    if (!strcmp( "fix_list_weight", name)) fix_list_weight = static_cast<float>(atof(val));
+    if (!strcmp( "fix_list_weight", name)) fix_list_weight = static_cast<bst_float>(atof(val));
     if (!strcmp( "num_pairsample", name)) num_pairsample = atoi(val);
   }
   virtual void GetGradient(const std::vector<bst_float> &preds,
@@ -431,7 +431,7 @@ class LambdaRankObj : public IObjFunction {
       random::Random rnd; rnd.Seed(iter* 1111 + omp_get_thread_num());
       std::vector<LambdaPair> pairs;
       std::vector<ListEntry>  lst;
-      std::vector< std::pair<float, unsigned> > rec;
+      std::vector< std::pair<bst_float, unsigned> > rec;
       #pragma omp for schedule(static)
       for (bst_omp_uint k = 0; k < ngroup; ++k) {
         lst.clear(); pairs.clear();
@@ -469,17 +469,17 @@ class LambdaRankObj : public IObjFunction {
         // get lambda weight for the pairs
         this->GetLambdaWeight(lst, &pairs);
         // rescale each gradient and hessian so that the lst have constant weighted
-        float scale = 1.0f / num_pairsample;
+        bst_float scale = 1.0f / num_pairsample;
         if (fix_list_weight != 0.0f) {
           scale *= fix_list_weight / (gptr[k+1] - gptr[k]);
         }
         for (size_t i = 0; i < pairs.size(); ++i) {
           const ListEntry &pos = lst[pairs[i].pos_index];
           const ListEntry &neg = lst[pairs[i].neg_index];
-          const float w = pairs[i].weight * scale;
-          float p = loss.PredTransform(pos.pred - neg.pred);
-          float g = loss.FirstOrderGradient(p, 1.0f);
-          float h = loss.SecondOrderGradient(p, 1.0f);
+          const bst_float w = pairs[i].weight * scale;
+          bst_float p = loss.PredTransform(pos.pred - neg.pred);
+          bst_float g = loss.FirstOrderGradient(p, 1.0f);
+          bst_float h = loss.SecondOrderGradient(p, 1.0f);
           // accumulate gradient and hessian in both pid, and nid
           gpair[pos.rindex].grad += g * w;
           gpair[pos.rindex].hess += 2.0f * w * h;
@@ -497,13 +497,13 @@ class LambdaRankObj : public IObjFunction {
   /*! \brief helper information in a list */
   struct ListEntry {
     /*! \brief the predict score we in the data */
-    float pred;
+    bst_float pred;
     /*! \brief the actual label of the entry */
-    float label;
+    bst_float label;
     /*! \brief row index in the data matrix */
     unsigned rindex;
     // constructor
-    ListEntry(float pred, float label, unsigned rindex)
+    ListEntry(bst_float pred, bst_float label, unsigned rindex)
         : pred(pred), label(label), rindex(rindex) {}
     // comparator by prediction
     inline static bool CmpPred(const ListEntry &a, const ListEntry &b) {
@@ -521,7 +521,7 @@ class LambdaRankObj : public IObjFunction {
     /*! \brief negative index: this is a position in the list */
     unsigned neg_index;
     /*! \brief weight to be filled in */
-    float weight;
+    bst_float weight;
     // constructor
     LambdaPair(unsigned pos_index, unsigned neg_index)
         : pos_index(pos_index), neg_index(neg_index), weight(1.0f) {}
@@ -540,7 +540,7 @@ class LambdaRankObj : public IObjFunction {
   // number of samples peformed for each instance
   int num_pairsample;
   // fix weight of each elements in list
-  float fix_list_weight;
+  bst_float fix_list_weight;
 };
 
 class PairwiseRankObj: public LambdaRankObj{
@@ -561,13 +561,13 @@ class LambdaRankObjNDCG : public LambdaRankObj {
   virtual void GetLambdaWeight(const std::vector<ListEntry> &sorted_list,
                                std::vector<LambdaPair> *io_pairs) {
     std::vector<LambdaPair> &pairs = *io_pairs;
-    float IDCG;
+    bst_float IDCG;
     {
       std::vector<bst_float> labels(sorted_list.size());
       for (size_t i = 0; i < sorted_list.size(); ++i) {
         labels[i] = sorted_list[i].label;
       }
-      std::sort(labels.begin(), labels.end(), std::greater<float>());
+      std::sort(labels.begin(), labels.end(), std::greater<bst_float>());
       IDCG = CalcDCG(labels);
     }
     if (IDCG == 0.0) {
@@ -579,29 +579,29 @@ class LambdaRankObjNDCG : public LambdaRankObj {
       for (size_t i = 0; i < pairs.size(); ++i) {
         unsigned pos_idx = pairs[i].pos_index;
         unsigned neg_idx = pairs[i].neg_index;
-        float pos_loginv = 1.0f / std::log(pos_idx + 2.0f);
-        float neg_loginv = 1.0f / std::log(neg_idx + 2.0f);
+        bst_float pos_loginv = 1.0f / std::log(pos_idx + 2.0f);
+        bst_float neg_loginv = 1.0f / std::log(neg_idx + 2.0f);
         int pos_label = static_cast<int>(sorted_list[pos_idx].label);
         int neg_label = static_cast<int>(sorted_list[neg_idx].label);
-        float original =
+        bst_float original =
             ((1 << pos_label) - 1) * pos_loginv + ((1 << neg_label) - 1) * neg_loginv;
-        float changed  =
+        bst_float changed  =
             ((1 << neg_label) - 1) * pos_loginv + ((1 << pos_label) - 1) * neg_loginv;
-        float delta = (original - changed) * IDCG;
+        bst_float delta = (original - changed) * IDCG;
         if (delta < 0.0f) delta = - delta;
         pairs[i].weight = delta;
       }
     }
   }
-  inline static float CalcDCG(const std::vector<bst_float> &labels) {
+  inline static bst_float CalcDCG(const std::vector<bst_float> &labels) {
     double sumdcg = 0.0;
     for (size_t i = 0; i < labels.size(); ++i) {
       const unsigned rel = static_cast<unsigned>(labels[i]);
       if (rel != 0) {
-        sumdcg += ((1 << rel) - 1) / std::log(static_cast<float>(i + 2));
+        sumdcg += ((1 << rel) - 1) / std::log(static_cast<bst_float>(i + 2));
       }
     }
-    return static_cast<float>(sumdcg);
+    return static_cast<bst_float>(sumdcg);
   }
 };
 
@@ -612,21 +612,21 @@ class LambdaRankObjMAP : public LambdaRankObj {
  protected:
   struct MAPStats {
     /*! \brief the accumulated precision */
-    float ap_acc;
+    bst_float ap_acc;
     /*!
      * \brief the accumulated precision,
      *   assuming a positive instance is missing
      */
-    float ap_acc_miss;
+    bst_float ap_acc_miss;
     /*!
      * \brief the accumulated precision,
      * assuming that one more positive instance is inserted ahead
      */
-    float ap_acc_add;
+    bst_float ap_acc_add;
     /* \brief the accumulated positive instance count */
-    float hits;
+    bst_float hits;
     MAPStats(void) {}
-    MAPStats(float ap_acc, float ap_acc_miss, float ap_acc_add, float hits)
+    MAPStats(bst_float ap_acc, bst_float ap_acc_miss, bst_float ap_acc_add, bst_float hits)
         : ap_acc(ap_acc), ap_acc_miss(ap_acc_miss), ap_acc_add(ap_acc_add), hits(hits) {}
   };
   /*!
@@ -636,7 +636,7 @@ class LambdaRankObjMAP : public LambdaRankObj {
    * \param index1,index2 the instances switched
    * \param map_stats a vector containing the accumulated precisions for each position in a list
    */
-  inline float GetLambdaMAP(const std::vector<ListEntry> &sorted_list,
+  inline bst_float GetLambdaMAP(const std::vector<ListEntry> &sorted_list,
                             int index1, int index2,
                             std::vector<MAPStats> *p_map_stats) {
     std::vector<MAPStats> &map_stats = *p_map_stats;
@@ -644,11 +644,11 @@ class LambdaRankObjMAP : public LambdaRankObj {
       return 0.0f;
     }
     if (index1 > index2) std::swap(index1, index2);
-    float original = map_stats[index2].ap_acc;
+    bst_float original = map_stats[index2].ap_acc;
     if (index1 != 0) original -= map_stats[index1 - 1].ap_acc;
-    float changed = 0;
-    float label1 = sorted_list[index1].label > 0.0f ? 1.0f : 0.0f;
-    float label2 = sorted_list[index2].label > 0.0f ? 1.0f : 0.0f;
+    bst_float changed = 0;
+    bst_float label1 = sorted_list[index1].label > 0.0f ? 1.0f : 0.0f;
+    bst_float label2 = sorted_list[index2].label > 0.0f ? 1.0f : 0.0f;
     if (label1 == label2) {
       return 0.0;
     } else if (label1 < label2) {
@@ -658,7 +658,7 @@ class LambdaRankObjMAP : public LambdaRankObj {
       changed += map_stats[index2 - 1].ap_acc_miss - map_stats[index1].ap_acc_miss;
       changed += map_stats[index2].hits / (index2 + 1);
     }
-    float ans = (changed - original) / (map_stats[map_stats.size() - 1].hits);
+    bst_float ans = (changed - original) / (map_stats[map_stats.size() - 1].hits);
     if (ans < 0) ans = -ans;
     return ans;
   }
@@ -671,7 +671,7 @@ class LambdaRankObjMAP : public LambdaRankObj {
                           std::vector<MAPStats> *p_map_acc) {
     std::vector<MAPStats> &map_acc = *p_map_acc;
     map_acc.resize(sorted_list.size());
-    float hit = 0, acc1 = 0, acc2 = 0, acc3 = 0;
+    bst_float hit = 0, acc1 = 0, acc2 = 0, acc3 = 0;
     for (size_t i = 1; i <= sorted_list.size(); ++i) {
       if (sorted_list[i - 1].label > 0.0f) {
         hit++;

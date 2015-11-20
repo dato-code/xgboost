@@ -316,7 +316,7 @@ struct WQSummary {
   }
   // check consistency of the summary
   inline bool Check(const char *msg) const {
-    const float tol = 10.0f;
+    const bst_float tol = 10.0f;
     for (size_t i = 0; i < this->size; ++i) {
       if (data[i].rmin + data[i].wmin > data[i].rmax + tol ||
           data[i].rmin < -1e-6f || data[i].rmax < -1e-6f) {
