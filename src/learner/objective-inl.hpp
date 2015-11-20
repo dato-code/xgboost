@@ -275,11 +275,39 @@ class SoftmaxMultiClassObj : public IObjFunction {
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size() / nclass);
     int label_error = 0;
     // #pragma omp parallel
-    {
+    // {
+    //   std::vector<bst_float> rec(nclass);
+    //   #pragma omp for schedule(static)
+    //   for (bst_omp_uint i = 0; i < ndata; ++i) {
+    //     std::vector<bst_float> rec(nclass);
+    //     for (int k = 0; k < nclass; ++k) {
+    //       rec[k] = preds[i * nclass + k];
+    //     }
+    //     Softmax(&rec);
+    //     const unsigned j = i % nstep;
+    //     int label = static_cast<int>(info.labels[j]);
+    //     if (label < 0 || label >= nclass)  {
+    //       label_error = label; label = 0;
+    //     }
+    //     const float wt = info.GetWeight(j);
+    //     for (int k = 0; k < nclass; ++k) {
+    //       float p = rec[k];
+    //       const float h = 2.0f * p * (1.0f - p) * wt;
+    //       if (label == k) {
+    //         gpair[i * nclass + k] = bst_gpair((p - 1.0f) * wt, h);
+    //       } else {
+    //         gpair[i * nclass + k] = bst_gpair(p* wt, h);
+    //       }
+    //     }
+    //   };
+    // }
+    size_t nthreads = graphlab::thread::cpu_count(); 
+    graphlab::parallel_for (0, nthreads, [&](size_t thread_id) {
+      size_t begin_idx = ndata * thread_id / nthreads;
+      size_t end_idx = ndata * (thread_id + 1) / nthreads;
+
       std::vector<bst_float> rec(nclass);
-      // #pragma omp for schedule(static)
-      // for (bst_omp_uint i = 0; i < ndata; ++i) {
-      graphlab::parallel_for(0, ndata, [&](size_t i) {
+      for (size_t i = begin_idx; i < end_idx; ++i) {
         for (int k = 0; k < nclass; ++k) {
           rec[k] = preds[i * nclass + k];
         }
@@ -299,8 +327,9 @@ class SoftmaxMultiClassObj : public IObjFunction {
             gpair[i * nclass + k] = bst_gpair(p* wt, h);
           }
         }
-      });
-    }
+      }
+    });
+
     utils::Check(label_error >= 0 && label_error < nclass,
                  "SoftmaxMultiClassObj: label must be in [0, num_class),"\
                  " num_class=%d but found %d in label", nclass, label_error);
@@ -323,11 +352,30 @@ class SoftmaxMultiClassObj : public IObjFunction {
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size()/nclass);
     if (prob == 0) tmp.resize(ndata);
     // #pragma omp parallel
-    {
+    // {
+    //   std::vector<bst_float> rec(nclass);
+    //   #pragma omp for schedule(static)
+    //   for (bst_omp_uint j = 0; j < ndata; ++j) {
+    //     for (int k = 0; k < nclass; ++k) {
+    //       rec[k] = preds[j * nclass + k];
+    //     }
+    //     if (prob == 0) {
+    //       tmp[j] = static_cast<float>(FindMaxIndex(rec));
+    //     } else {
+    //       Softmax(&rec);
+    //       for (int k = 0; k < nclass; ++k) {
+    //         preds[j * nclass + k] = rec[k];
+    //       }
+    //     }
+    //   };
+    // }
+    size_t nthreads = graphlab::thread::cpu_count(); 
+    graphlab::parallel_for (0, nthreads, [&](size_t thread_id) {
+      size_t begin_idx = ndata * thread_id / nthreads;
+      size_t end_idx = ndata * (thread_id + 1) / nthreads;
+
       std::vector<bst_float> rec(nclass);
-      // #pragma omp for schedule(static)
-      // for (bst_omp_uint j = 0; j < ndata; ++j) {
-      graphlab::parallel_for(0, ndata, [&](size_t j) {
+      for (size_t j = begin_idx; j < end_idx; ++j) {
         for (int k = 0; k < nclass; ++k) {
           rec[k] = preds[j * nclass + k];
         }
@@ -339,8 +387,8 @@ class SoftmaxMultiClassObj : public IObjFunction {
             preds[j * nclass + k] = rec[k];
           }
         }
-      });
-    }
+      }
+    });
     if (prob == 0) preds = tmp;
   }
   // data field
@@ -376,7 +424,7 @@ class LambdaRankObj : public IObjFunction {
     utils::Check(gptr.size() != 0 && gptr.back() == info.labels.size(),
                  "group structure not consistent with #rows");
     const bst_omp_uint ngroup = static_cast<bst_omp_uint>(gptr.size() - 1);
-    // #pragma omp parallel
+    #pragma omp parallel
     {
       // parall construct, declare random number generator here, so that each
       // thread use its own random number generator, seed by thread id and current iteration
@@ -384,9 +432,8 @@ class LambdaRankObj : public IObjFunction {
       std::vector<LambdaPair> pairs;
       std::vector<ListEntry>  lst;
       std::vector< std::pair<float, unsigned> > rec;
-      // #pragma omp for schedule(static)
-      // for (bst_omp_uint k = 0; k < ngroup; ++k) {
-      graphlab::parallel_for (0, ngroup, [&](size_t k) {
+      #pragma omp for schedule(static)
+      for (bst_omp_uint k = 0; k < ngroup; ++k) {
         lst.clear(); pairs.clear();
         for (unsigned j = gptr[k]; j < gptr[k+1]; ++j) {
           lst.push_back(ListEntry(preds[j], info.labels[j], j));
@@ -439,7 +486,7 @@ class LambdaRankObj : public IObjFunction {
           gpair[neg.rindex].grad -= g * w;
           gpair[neg.rindex].hess += 2.0f * w * h;
         }
-      });
+      };
     }
   }
   virtual const char* DefaultEvalMetric(void) const {
