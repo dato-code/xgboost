@@ -343,10 +343,12 @@ class CQHistMaker: public HistMaker<TStats> {
         // for (bst_omp_uint i = 0; i < nsize; ++i) {
         graphlab::parallel_for(0, nsize, [&](size_t i) {
           int offset = feat2workindex[batch.col_index[i]];
+          // int tid = omp_get_thread_num();
+          int tid = graphlab::thread::thread_id();
           if (offset >= 0) {
             this->UpdateHistCol(gpair, batch[i], info, tree,
                                 fset, offset,
-                                &thread_hist[omp_get_thread_num()]);
+                                &thread_hist[tid]);
           }
         });
       }
@@ -420,12 +422,14 @@ class CQHistMaker: public HistMaker<TStats> {
         // for (bst_omp_uint i = 0; i < nsize; ++i) {
         graphlab::parallel_for (0, nsize, [&](size_t i) {
           int offset = feat2workindex[batch.col_index[i]];
+          // int tid = omp_get_thread_num();
+          int tid = graphlab::thread::thread_id();
           if (offset >= 0) {
             this->UpdateSketchCol(gpair, batch[i], tree,
                                   node_stats,
                                   freal_set, offset,
                                   batch[i].length == nrows,
-                                  &thread_sketch[omp_get_thread_num()]);
+                                  &thread_sketch[tid]);
           }
         });
       }
@@ -677,6 +681,8 @@ class QuantileHistMaker: public HistMaker<TStats> {
         RowBatch::Inst inst = batch[i];
         const bst_uint ridx = static_cast<bst_uint>(batch.base_rowid + i);
         int nid = this->position[ridx];
+        // int tid = omp_get_thread_num();
+        int tid = graphlab::thread::thread_id();
         if (nid >= 0) {
           if (!tree[nid].is_leaf()) {
             this->position[ridx] = nid = HistMaker<TStats>::NextLevel(inst, tree, nid);
@@ -685,7 +691,7 @@ class QuantileHistMaker: public HistMaker<TStats> {
             this->position[ridx] = ~nid;
           } else {
             for (bst_uint j = 0; j < inst.length; ++j) {
-              builder.AddBudget(inst[j].index, omp_get_thread_num());
+              builder.AddBudget(inst[j].index, tid);
             }
           }
         }
@@ -697,11 +703,13 @@ class QuantileHistMaker: public HistMaker<TStats> {
         RowBatch::Inst inst = batch[i];
         const bst_uint ridx = static_cast<bst_uint>(batch.base_rowid + i);
         const int nid = this->position[ridx];
+        // int tid = omp_get_thread_num();
+        int tid = graphlab::thread::thread_id();
         if (nid >= 0) {
           for (bst_uint j = 0; j < inst.length; ++j) {
             builder.Push(inst[j].index,
                          SparseBatch::Entry(nid, inst[j].fvalue),
-                         omp_get_thread_num());
+                         tid);
           }
         }
       });

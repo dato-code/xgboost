@@ -256,18 +256,18 @@ class ColMaker: public IUpdater {
       bool need_forward = param.need_forward_search(fmat.GetColDensity(fid), ind);
       bool need_backward = param.need_backward_search(fmat.GetColDensity(fid), ind);
       const std::vector<int> &qexpand = qexpand_;
+
       // #pragma omp parallel
-      {
+      graphlab::in_parallel( [&](size_t tid, size_t nthread) {
         // const int tid = omp_get_thread_num();
-        const int tid = graphlab::thread::thread_id();
         std::vector<ThreadEntry> &temp = stemp[tid];
         // cleanup temp statistics
         for (size_t j = 0; j < qexpand.size(); ++j) {
           temp[qexpand[j]].stats.Clear();
         }
-        nthread = omp_get_num_threads();
+        // nthread = omp_get_num_threads();
         bst_uint step = (col.length + nthread - 1) / nthread;
-        bst_uint end = std::min(col.length, step * (tid + 1));
+        bst_uint end = std::min<size_t>(col.length, step * (tid + 1));
         for (bst_uint i = tid * step; i < end; ++i) {
           const bst_uint ridx = col[i].index;
           const int nid = position[ridx];
@@ -279,7 +279,8 @@ class ColMaker: public IUpdater {
           temp[nid].stats.Add(gpair, info, ridx);
           temp[nid].last_fvalue = fvalue;
         }
-      }
+      }); // end parallel for
+
       // start collecting the partial sum statistics
       bst_omp_uint nnode = static_cast<bst_omp_uint>(qexpand.size());
       // #pragma omp parallel for schedule(static)
@@ -339,16 +340,17 @@ class ColMaker: public IUpdater {
             e.best.Update(loss_chg, fid, e.last_fvalue + rt_eps, true);
           }
         }
-      });
+      }); // end parallel for
+
       // rescan, generate candidate split
       // #pragma omp parallel
-      {
+      graphlab::in_parallel([&](size_t tid, size_t nthread) {
         TStats c(param), cright(param);
-        const int tid = omp_get_thread_num();
+        // const int tid = omp_get_thread_num();
         std::vector<ThreadEntry> &temp = stemp[tid];
-        nthread = static_cast<bst_uint>(omp_get_num_threads());
+        // nthread = static_cast<bst_uint>(omp_get_num_threads());
         bst_uint step = (col.length + nthread - 1) / nthread;
-        bst_uint end = std::min(col.length, step * (tid + 1));
+        bst_uint end = std::min<bst_uint>(col.length, step * (tid + 1));
         for (bst_uint i = tid * step; i < end; ++i) {
           const bst_uint ridx = col[i].index;
           const int nid = position[ridx];
@@ -388,8 +390,9 @@ class ColMaker: public IUpdater {
             e.first_fvalue = fvalue;
           }
         }
-      }
+      }); // end parallel for
     }
+
     // update enumeration solution
     inline void UpdateEnumeration(int nid, bst_gpair gstats,
                                   bst_float fvalue, int d_step, bst_uint fid,

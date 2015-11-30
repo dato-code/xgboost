@@ -290,12 +290,14 @@ class BaseMaker: public IUpdater {
     p_node_stats->resize(tree.param.num_nodes);
     // #pragma omp parallel
     {
-      const int tid = omp_get_thread_num();
-      thread_temp[tid].resize(tree.param.num_nodes, TStats(param));
-      for (size_t i = 0; i < qexpand.size(); ++i) {
-        const unsigned nid = qexpand[i];
-        thread_temp[tid][nid].Clear();
-      }
+      // const int tid = omp_get_thread_num();
+      graphlab::in_parallel([&](size_t tid, size_t num_threads) {
+        thread_temp[tid].resize(tree.param.num_nodes, TStats(param));
+        for (size_t i = 0; i < qexpand.size(); ++i) {
+          const unsigned nid = qexpand[i];
+          thread_temp[tid][nid].Clear();
+        }
+      });
     }
     const std::vector<bst_uint> &rowset = fmat.buffered_rowset();
     // setup position
@@ -305,7 +307,8 @@ class BaseMaker: public IUpdater {
     graphlab::parallel_for (0, ndata, [&](size_t i) {
       const bst_uint ridx = rowset[i];
       const int nid = position[ridx];
-      const int tid = omp_get_thread_num();
+      // const int tid = omp_get_thread_num();
+      const int tid = graphlab::thread::thread_id();
       if (nid >= 0) {
         thread_temp[tid][nid].Add(gpair, info, ridx);
       }

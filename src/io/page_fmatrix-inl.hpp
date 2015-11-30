@@ -117,52 +117,56 @@ struct ColConvertFactory {
                           const std::vector<bool> &enabled,
                           SparsePage *pcol) {
     pcol->Clear();
-    int nthread;
-    #pragma omp parallel
-    {
-      nthread = omp_get_num_threads();
-      int max_nthread = std::max(omp_get_num_procs() / 2 - 4, 1);
-      if (nthread > max_nthread) {
-        nthread = max_nthread;
-      }
-    }
+    int nthread = graphlab::thread::cpu_count();
+    // #pragma omp parallel
+    // {
+    //   nthread = omp_get_num_threads();
+    //   int max_nthread = std::max(omp_get_num_procs() / 2 - 4, 1);
+    //   if (nthread > max_nthread) {
+    //     nthread = max_nthread;
+    //   }
+    // }
     pcol->Clear();
     utils::ParallelGroupBuilder<SparseBatch::Entry>
         builder(&pcol->offset, &pcol->data);
     builder.InitBudget(num_col_, nthread);
     bst_omp_uint ndata = static_cast<bst_uint>(prow.Size());
-    #pragma omp parallel for schedule(static) num_threads(nthread)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
-      int tid = omp_get_thread_num();
+    // #pragma omp parallel for schedule(static) num_threads(nthread)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for (0, ndata, [&](size_t i) {
+      // int tid = omp_get_thread_num();
+      int tid = graphlab::thread::thread_id();
       for (size_t j = prow.offset[i]; j < prow.offset[i+1]; ++j) {
         const SparseBatch::Entry &e = prow.data[j];
         if (enabled[e.index]) {
           builder.AddBudget(e.index, tid);
         }
       }
-    }
+    });
     builder.InitStorage();
-    #pragma omp parallel for schedule(static) num_threads(nthread)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
-      int tid = omp_get_thread_num();
+    // #pragma omp parallel for schedule(static) num_threads(nthread)
+    graphlab::parallel_for (0, ndata, [&](size_t i) {
+      // int tid = omp_get_thread_num();
+      int tid = graphlab::thread::thread_id();
       for (size_t j = prow.offset[i]; j < prow.offset[i+1]; ++j) {
         const SparseBatch::Entry &e = prow.data[j];
         builder.Push(e.index,
                      SparseBatch::Entry(ridx[i], e.fvalue),
                      tid);
       }
-    }
+    });
     utils::Assert(pcol->Size() == num_col_, "inconsistent col data");
     // sort columns
     bst_omp_uint ncol = static_cast<bst_omp_uint>(pcol->Size());
-    #pragma omp parallel for schedule(dynamic, 1) num_threads(nthread)
-    for (bst_omp_uint i = 0; i < ncol; ++i) {
+    // #pragma omp parallel for schedule(dynamic, 1) num_threads(nthread)
+    // for (bst_omp_uint i = 0; i < ncol; ++i) {
+    graphlab::parallel_for (0, ncol, [&](size_t i) {
       if (pcol->offset[i] < pcol->offset[i + 1]) {
         std::sort(BeginPtr(pcol->data) + pcol->offset[i],
                   BeginPtr(pcol->data) + pcol->offset[i + 1],
                   SparseBatch::Entry::CmpValue);
       }
-    }
+    });
   }
   // probability of keep
   float pkeep_;
