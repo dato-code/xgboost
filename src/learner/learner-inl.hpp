@@ -105,7 +105,7 @@ class BoostLearner : public rabit::Serializable {
     }
     if (!strcmp(name, "updater_mode")) updater_mode = atoi(val);
     if (!strcmp(name, "prob_buffer_row")) {
-      prob_buffer_row = static_cast<bst_float>(atof(val));
+      prob_buffer_row = static_cast<float>(atof(val));
       utils::Check(distributed_mode == 0,
                    "prob_buffer_row can only be used in single node mode so far");
       this->SetParam("updater", "grow_colmaker,refresh,prune");
@@ -238,7 +238,7 @@ class BoostLearner : public rabit::Serializable {
     LegacyModelParam legacy_model_param; 
     utils::Check(fi.Read(&legacy_model_param, sizeof(LegacyModelParam)) != 0,
                  "BoostLearner: wrong model format");
-    mparam.base_score = (bst_float)(legacy_model_param.base_score);
+    mparam.base_score = (float)(legacy_model_param.base_score);
     mparam.num_feature = legacy_model_param.num_feature;
     mparam.num_class = legacy_model_param.num_class;
     mparam.saved_with_pbuffer = false;
@@ -409,12 +409,12 @@ class BoostLearner : public rabit::Serializable {
    * \param metric name of metric
    * \return a pair of <evaluation name, result>
    */
-  std::pair<std::string, bst_float> Evaluate(const DMatrix &data, std::string metric) {
+  std::pair<std::string, float> Evaluate(const DMatrix &data, std::string metric) {
     if (metric == "auto") metric = obj_->DefaultEvalMetric();
     IEvaluator *ev = CreateEvaluator(metric.c_str());
     this->PredictRaw(data, &preds_);
     obj_->EvalTransform(&preds_);
-    bst_float res = ev->Eval(preds_, data.info);
+    float res = ev->Eval(preds_, data.info);
     delete ev;
     return std::make_pair(metric, res);
   }
@@ -549,7 +549,7 @@ class BoostLearner : public rabit::Serializable {
   /*! \brief training parameter for regression */
   struct ModelParam{
     /* \brief global bias */
-    bst_float base_score;
+    float base_score;
     /* \brief number of features  */
     unsigned num_feature;
     /* \brief number of class, if it is multi-class classification  */
@@ -573,7 +573,7 @@ class BoostLearner : public rabit::Serializable {
      */
     inline void SetParam(const char *name, const char *val) {
       using namespace std;
-      if (!strcmp("base_score", name)) base_score = static_cast<bst_float>(atof(val));
+      if (!strcmp("base_score", name)) base_score = static_cast<float>(atof(val));
       if (!strcmp("num_class", name)) num_class = atoi(val);
       if (!strcmp("bst:num_feature", name)) num_feature = atoi(val);
     }
@@ -596,7 +596,7 @@ class BoostLearner : public rabit::Serializable {
   // cached size of predict buffer
   size_t pred_buffer_size;
   // maximum buffred row value
-  bst_float prob_buffer_row;
+  float prob_buffer_row;
   // evaluation set
   EvalSet evaluator_;
   // model parameter

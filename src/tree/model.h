@@ -223,7 +223,7 @@ class TreeModel {
    * \param rid node id of the node
    * \param new leaf value
    */
-  inline void ChangeToLeaf(int rid, bst_float value) {
+  inline void ChangeToLeaf(int rid, float value) {
     utils::Assert(nodes[nodes[rid].cleft() ].is_leaf(),
                   "can not delete a non terminal child");
     utils::Assert(nodes[nodes[rid].cright()].is_leaf(),
@@ -237,7 +237,7 @@ class TreeModel {
    * \param rid node id of the node
    * \param new leaf value
    */
-  inline void CollapseToLeaf(int rid, bst_float value) {
+  inline void CollapseToLeaf(int rid, float value) {
     if (nodes[rid].is_leaf()) return;
     if (!nodes[nodes[rid].cleft() ].is_leaf()) {
       CollapseToLeaf(nodes[rid].cleft(), 0.0f);
@@ -443,7 +443,7 @@ class TreeModel {
           }
           case utils::FeatMap::kInteger: {
             fo << nid << ":[" << fmap.name(split_index) << "<"
-               << int(bst_float(cond)+1.0f)
+               << int(float(cond)+1.0f)
                << "] yes=" << nodes[nid].cleft()
                << ",no=" << nodes[nid].cright()
                << ",missing=" << nodes[nid].cdefault();
@@ -451,7 +451,7 @@ class TreeModel {
           }
           case utils::FeatMap::kFloat:
           case utils::FeatMap::kQuantitive: {
-            fo << nid << ":[" << fmap.name(split_index) << "<"<< bst_float(cond)
+            fo << nid << ":[" << fmap.name(split_index) << "<"<< float(cond)
                << "] yes=" << nodes[nid].cleft()
                << ",no=" << nodes[nid].cright()
                << ",missing=" << nodes[nid].cdefault();
@@ -460,7 +460,7 @@ class TreeModel {
           default: utils::Error("unknown fmap type");
         }
       } else {
-        fo << nid << ":[f" << split_index << "<"<< bst_float(cond)
+        fo << nid << ":[f" << split_index << "<"<< float(cond)
            << "] yes=" << nodes[nid].cleft()
            << ",no=" << nodes[nid].cright()
            << ",missing=" << nodes[nid].cdefault();
@@ -504,7 +504,7 @@ class TreeModel {
               }
               case utils::FeatMap::kInteger:{
                   vertex.push_back(JSONNode("type", "integer"));
-                  vertex.push_back(JSONNode("value", int(bst_float(cond)+1.0f)));
+                  vertex.push_back(JSONNode("value", int(float(cond)+1.0f)));
                   left_edge.push_back(JSONNode("dst", nodes[nid].cleft()));
                   left_edge.push_back(JSONNode("value", "yes"));
                   right_edge.push_back(JSONNode("dst", nodes[nid].cright()));
@@ -513,8 +513,8 @@ class TreeModel {
               }
               case utils::FeatMap::kFloat:
               case utils::FeatMap::kQuantitive:{
-                  vertex.push_back(JSONNode("type", "bst_float"));
-                  vertex.push_back(JSONNode("value", bst_float(cond)));
+                  vertex.push_back(JSONNode("type", "float"));
+                  vertex.push_back(JSONNode("value", float(cond)));
                   left_edge.push_back(JSONNode("dst", nodes[nid].cleft()));
                   left_edge.push_back(JSONNode("value", "yes"));
                   right_edge.push_back(JSONNode("dst", nodes[nid].cright()));
@@ -572,7 +572,7 @@ class RegTree: public TreeModel<bst_float, RTreeNodeStat>{
      * when flag == -1, this indicate the value is missing
      */
     union Entry{
-      bst_float fvalue;
+      float fvalue;
       int flag;
     };
     std::vector<Entry> data;
@@ -597,7 +597,7 @@ class RegTree: public TreeModel<bst_float, RTreeNodeStat>{
       }
     }
     /*! \brief get ith value */
-    inline bst_float fvalue(size_t i) const {
+    inline float fvalue(size_t i) const {
       return data[i].fvalue;
     }
     /*! \brief check whether i-th entry is missing */
@@ -627,13 +627,13 @@ class RegTree: public TreeModel<bst_float, RTreeNodeStat>{
    * \param root_gid starting root index of the instance
    * \return the leaf index of the given feature
    */
-  inline bst_float Predict(const FVec &feat, unsigned root_id = 0) const {
+  inline float Predict(const FVec &feat, unsigned root_id = 0) const {
     int pid = this->GetLeafIndex(feat, root_id);
     return (*this)[pid].leaf_value();
   }
   /*! \brief get next position of the tree given current pid */
-  inline int GetNext(int pid, bst_float fvalue, bool is_unknown) const {
-    bst_float split_value = (*this)[pid].split_cond();
+  inline int GetNext(int pid, float fvalue, bool is_unknown) const {
+    float split_value = (*this)[pid].split_cond();
     if (is_unknown) {
       return (*this)[pid].cdefault();
     } else {

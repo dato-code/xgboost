@@ -61,7 +61,7 @@ struct MetaInfo {
     info.num_row = info.num_col = 0;
   }
   /*! \brief get weight of each instances */
-  inline bst_float GetWeight(size_t i) const {
+  inline float GetWeight(size_t i) const {
     if (weights.size() != 0) {
       return weights[i];
     } else {

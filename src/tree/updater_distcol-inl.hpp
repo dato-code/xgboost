@@ -112,7 +112,7 @@ class DistColMaker : public ColMaker<TStats> {
           // for (bst_omp_uint j = 0; j < ndata; ++j) {
           graphlab::parallel_for (0, ndata, [&](size_t j) {
             const bst_uint ridx = col[j].index;
-            const bst_float fvalue = col[j].fvalue;
+            const float fvalue = col[j].fvalue;
             const int nid = this->DecodePosition(ridx);
             if (!tree[nid].is_leaf() && tree[nid].split_index() == fid) {
               if (fvalue < tree[nid].split_cond()) {

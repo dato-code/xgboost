@@ -263,7 +263,7 @@ class BaseMaker: public IUpdater {
         // for (bst_omp_uint j = 0; j < ndata; ++j) {
         graphlab::parallel_for (0, ndata, [&](size_t j) {
           const bst_uint ridx = col[j].index;
-          const bst_float fvalue = col[j].fvalue;
+          const float fvalue = col[j].fvalue;
           const int nid = this->DecodePosition(ridx);
           // go back to parent, correct those who are not default
           if (!tree[nid].is_leaf() && tree[nid].split_index() == fid) {

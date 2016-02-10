@@ -36,7 +36,7 @@ class ColMaker: public IUpdater {
                       const std::vector<RegTree*> &trees) {
     TStats::CheckInfo(info);
     // rescale learning rate according to size of trees
-    bst_float lr = param.learning_rate;
+    float lr = param.learning_rate;
     param.learning_rate = lr / trees.size();
     // build tree
     for (size_t i = 0; i < trees.size(); ++i) {
@@ -58,9 +58,9 @@ class ColMaker: public IUpdater {
     /*! \brief extra statistics of data */
     TStats stats_extra;
     /*! \brief last feature value scanned */
-    bst_float  last_fvalue;
+    float  last_fvalue;
     /*! \brief first feature value scanned */
-    bst_float  first_fvalue;
+    float  first_fvalue;
     /*! \brief current best solution */
     SplitEntry best;
     // constructor
@@ -74,7 +74,7 @@ class ColMaker: public IUpdater {
     /*! \brief loss of this node, without split */
     bst_float root_gain;
     /*! \brief weight calculated related to current data */
-    bst_float weight;
+    float weight;
     /*! \brief current best solution */
     SplitEntry best;
     // constructor
@@ -111,7 +111,7 @@ class ColMaker: public IUpdater {
       for (int nid = 0; nid < p_tree->param.num_nodes; ++nid) {
         p_tree->stat(nid).loss_chg = snode[nid].best.loss_chg;
         p_tree->stat(nid).base_weight = snode[nid].weight;
-        p_tree->stat(nid).sum_hess = static_cast<bst_float>(snode[nid].stats.sum_hess);
+        p_tree->stat(nid).sum_hess = static_cast<float>(snode[nid].stats.sum_hess);
         snode[nid].stats.SetLeafVec(param, p_tree->leafvec(nid));
       }
     }
@@ -227,8 +227,8 @@ class ColMaker: public IUpdater {
         }
         // update node statistics
         snode[nid].stats = stats;
-        snode[nid].root_gain = static_cast<bst_float>(stats.CalcGain(param));
-        snode[nid].weight = static_cast<bst_float>(stats.CalcWeight(param));
+        snode[nid].root_gain = static_cast<float>(stats.CalcGain(param));
+        snode[nid].weight = static_cast<float>(stats.CalcWeight(param));
       }
     }
     /*! \brief update queue expand add in new leaves */
@@ -272,7 +272,7 @@ class ColMaker: public IUpdater {
           const bst_uint ridx = col[i].index;
           const int nid = position[ridx];
           if (nid < 0) continue;
-          const bst_float fvalue = col[i].fvalue;
+          const float fvalue = col[i].fvalue;
           if (temp[nid].stats.Empty()) {
             temp[nid].first_fvalue = fvalue;
           }
@@ -299,7 +299,7 @@ class ColMaker: public IUpdater {
         for (int tid = 0; tid < nthread; ++tid) {
           stemp[tid][nid].stats_extra = sum;
           ThreadEntry &e = stemp[tid][nid];
-          bst_float fsplit;
+          float fsplit;
           if (tid != 0) {
             if (std::abs(stemp[tid - 1][nid].last_fvalue - e.first_fvalue) > rt_2eps) {
               fsplit = (stemp[tid - 1][nid].last_fvalue - e.first_fvalue) * 0.5f;
@@ -355,7 +355,7 @@ class ColMaker: public IUpdater {
           const bst_uint ridx = col[i].index;
           const int nid = position[ridx];
           if (nid < 0) continue;
-          const bst_float fvalue = col[i].fvalue;
+          const float fvalue = col[i].fvalue;
           // get the statistics of nid
           ThreadEntry &e = temp[nid];
           if (e.stats.Empty()) {
@@ -395,7 +395,7 @@ class ColMaker: public IUpdater {
 
     // update enumeration solution
     inline void UpdateEnumeration(int nid, bst_gpair gstats,
-                                  bst_float fvalue, int d_step, bst_uint fid,
+                                  float fvalue, int d_step, bst_uint fid,
                                   TStats &c, std::vector<ThreadEntry> &temp) { // NOLINT(*)
       // get the statistics of nid
       ThreadEntry &e = temp[nid];
@@ -482,8 +482,8 @@ class ColMaker: public IUpdater {
         if (e.stats.sum_hess >= param.min_child_weight && c.sum_hess >= param.min_child_weight) {
           bst_float loss_chg = static_cast<bst_float>(e.stats.CalcGain(param) +
                                                       c.CalcGain(param) - snode[nid].root_gain);
-          const bst_float gap = std::abs(e.last_fvalue) + rt_eps;
-          const bst_float delta = d_step == +1 ? gap: -gap;
+          const float gap = std::abs(e.last_fvalue) + rt_eps;
+          const float delta = d_step == +1 ? gap: -gap;
           e.best.Update(loss_chg, fid, e.last_fvalue + delta, d_step == -1);
         }
       }
@@ -514,7 +514,7 @@ class ColMaker: public IUpdater {
         const int nid = position[ridx];
         if (nid < 0) continue;
         // start working
-        const bst_float fvalue = it->fvalue;
+        const float fvalue = it->fvalue;
         // get the statistics of nid
         ThreadEntry &e = temp[nid];
         // test if first hit, this is fine, because we set 0 during init
@@ -545,8 +545,8 @@ class ColMaker: public IUpdater {
         if (e.stats.sum_hess >= param.min_child_weight && c.sum_hess >= param.min_child_weight) {
           bst_float loss_chg = static_cast<bst_float>(e.stats.CalcGain(param) +
                                                       c.CalcGain(param) - snode[nid].root_gain);
-          const bst_float gap = std::abs(e.last_fvalue) + rt_eps;
-          const bst_float delta = d_step == +1 ? gap: -gap;
+          const float gap = std::abs(e.last_fvalue) + rt_eps;
+          const float delta = d_step == +1 ? gap: -gap;
           e.best.Update(loss_chg, fid, e.last_fvalue + delta, d_step == -1);
         }
       }
@@ -698,7 +698,7 @@ class ColMaker: public IUpdater {
           graphlab::parallel_for (0, ndata, [&](size_t j) {
             const bst_uint ridx = col[j].index;
             const int nid = this->DecodePosition(ridx);
-            const bst_float fvalue = col[j].fvalue;
+            const float fvalue = col[j].fvalue;
             // go back to parent, correct those who are not default
             if (!tree[nid].is_leaf() && tree[nid].split_index() == fid) {
               if (fvalue < tree[nid].split_cond()) {
