@@ -99,7 +99,7 @@ class TreeModel {
       return cleft_ == -1;
     }
     /*! \brief get leaf value of leaf node */
-    inline bst_float leaf_value(void) const {
+    inline float leaf_value(void) const {
       return (this->info_).leaf_value;
     }
     /*! \brief get split condition of the node */
@@ -147,7 +147,7 @@ class TreeModel {
      * \param right right index, could be used to store
      *        additional information
      */
-    inline void set_leaf(bst_float value, int right = -1) {
+    inline void set_leaf(float value, int right = -1) {
       (this->info_).leaf_value = value;
       this->cleft_ = -1;
       this->cright_ = right;
@@ -164,7 +164,7 @@ class TreeModel {
      *        we have split condition
      */
     union Info{
-      bst_float leaf_value;
+      float leaf_value;
       TSplitCond split_cond;
     };
     // pointer to parent, highest bit is used to
@@ -302,7 +302,7 @@ class TreeModel {
     utils::Assert(param.num_nodes != 0, "invalid model");
     utils::Check(fi.Read(BeginPtr(nodes), sizeof(Node) * nodes.size()) > 0,
                  "TreeModel: wrong format");
-    utils::Check(fi.Read(BeginPtr(stats), sizeof(TNodeStat) * stats.size()) > 0,
+    utils::Check(fi.Read(BeginPtr(stats), sizeof(NodeStat) * stats.size()) > 0,
                  "TreeModel: wrong format");
     if (param.size_leaf_vector != 0) {
       utils::Check(fi.Read(&leaf_vector), "TreeModel: wrong format");
@@ -328,7 +328,7 @@ class TreeModel {
     fo.Write(&param, sizeof(Param));
     utils::Assert(param.num_nodes != 0, "invalid model");
     fo.Write(BeginPtr(nodes), sizeof(Node) * nodes.size());
-    fo.Write(BeginPtr(stats), sizeof(TNodeStat) * nodes.size());
+    fo.Write(BeginPtr(stats), sizeof(NodeStat) * nodes.size());
     if (param.size_leaf_vector != 0) fo.Write(leaf_vector);
   }
   /*!
@@ -541,13 +541,13 @@ class TreeModel {
 /*! \brief node statistics used in regression tree */
 struct RTreeNodeStat {
   /*! \brief loss chg caused by current split */
-  bst_float loss_chg;
+  float loss_chg;
   /*! \brief sum of hessian values, used to measure coverage of data */
-  bst_float sum_hess;
+  float sum_hess;
   /*! \brief weight of current node */
-  bst_float base_weight;
+  float base_weight;
   /*! \brief number of child that is leaf node known up to now */
-  int leaf_child_cnt;
+  int   leaf_child_cnt;
   /*! \brief print information of current stats to fo */
   inline void Print(std::stringstream &fo, bool is_leaf) const { // NOLINT(*)
     if (!is_leaf) {
