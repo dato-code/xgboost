@@ -14,9 +14,9 @@
 namespace xgboost {
 namespace learner {
 // simple helper function to do softmax
-inline static void Softmax(std::vector<bst_float>* p_rec) {
-  std::vector<bst_float> &rec = *p_rec;
-  bst_float wmax = rec[0];
+inline static void Softmax(std::vector<float>* p_rec) {
+  std::vector<float> &rec = *p_rec;
+  float wmax = rec[0];
   for (size_t i = 1; i < rec.size(); ++i) {
     wmax = std::max(rec[i], wmax);
   }
@@ -30,7 +30,7 @@ inline static void Softmax(std::vector<bst_float>* p_rec) {
   }
 }
 
-inline static int FindMaxIndex(const bst_float  *rec, size_t size) {
+inline static int FindMaxIndex(const float  *rec, size_t size) {
   size_t mxid = 0;
   for (size_t i = 1; i < size; ++i) {
     if (rec[i] > rec[mxid]) {
@@ -41,12 +41,12 @@ inline static int FindMaxIndex(const bst_float  *rec, size_t size) {
 }
 
 // simple helper function to do softmax
-inline static int FindMaxIndex(const std::vector<bst_float>& rec) {
+inline static int FindMaxIndex(const std::vector<float>& rec) {
   return FindMaxIndex(BeginPtr(rec), rec.size());
 }
 
 // perform numerical safe logsum
-inline bst_float LogSum(bst_float x, bst_float y) {
+inline float LogSum(float x, float y) {
   if (x < y) {
     return y + std::log(std::exp(x - y) + 1.0f);
   } else {
@@ -54,25 +54,25 @@ inline bst_float LogSum(bst_float x, bst_float y) {
   }
 }
 // numerical safe logsum
-inline bst_float LogSum(const bst_float *rec, size_t size) {
-  bst_float mx = rec[0];
+inline float LogSum(const float *rec, size_t size) {
+  float mx = rec[0];
   for (size_t i = 1; i < size; ++i) {
     mx = std::max(mx, rec[i]);
   }
-  bst_float sum = 0.0f;
+  float sum = 0.0f;
   for (size_t i = 0; i < size; ++i) {
     sum += std::exp(rec[i] - mx);
   }
   return mx + std::log(sum);
 }
 
-inline static bool CmpFirst(const std::pair<bst_float, unsigned> &a,
-                            const std::pair<bst_float, unsigned> &b) {
+inline static bool CmpFirst(const std::pair<float, unsigned> &a,
+                            const std::pair<float, unsigned> &b) {
   return a.first > b.first;
 }
 
-inline static bool CmpSecond(const std::pair<bst_float, unsigned> &a,
-                             const std::pair<bst_float, unsigned> &b) {
+inline static bool CmpSecond(const std::pair<float, unsigned> &a,
+                             const std::pair<float, unsigned> &b) {
   return a.second > b.second;
 }
 }  // namespace learner

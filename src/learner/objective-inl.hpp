@@ -133,7 +133,7 @@ class RegLossObj : public IObjFunction {
       scale_pos_weight = static_cast<float>(atof(val));
     }
   }
-  virtual void GetGradient(const std::vector<bst_float> &preds,
+  virtual void GetGradient(const std::vector<float> &preds,
                            const MetaInfo &info,
                            int iter,
                            std::vector<bst_gpair> *out_gpair) {
@@ -163,8 +163,8 @@ class RegLossObj : public IObjFunction {
   virtual const char* DefaultEvalMetric(void) const {
     return loss.DefaultEvalMetric();
   }
-  virtual void PredTransform(std::vector<bst_float> *io_preds) {
-    std::vector<bst_float> &preds = *io_preds;
+  virtual void PredTransform(std::vector<float> *io_preds) {
+    std::vector<float> &preds = *io_preds;
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size());
     // #pragma omp parallel for schedule(static)
     // for (bst_omp_uint j = 0; j < ndata; ++j) {
@@ -195,7 +195,7 @@ class PoissonRegression : public IObjFunction {
       max_delta_step = static_cast<float>(atof(val));
     }
   }
-  virtual void GetGradient(const std::vector<bst_float> &preds,
+  virtual void GetGradient(const std::vector<float> &preds,
                            const MetaInfo &info,
                            int iter,
                            std::vector<bst_gpair> *out_gpair) {
@@ -226,8 +226,8 @@ class PoissonRegression : public IObjFunction {
     utils::Check(label_correct,
                  "PoissonRegression: label must be nonnegative");
   }
-  virtual void PredTransform(std::vector<bst_float> *io_preds) {
-    std::vector<bst_float> &preds = *io_preds;
+  virtual void PredTransform(std::vector<float> *io_preds) {
+    std::vector<float> &preds = *io_preds;
     const long ndata = static_cast<long>(preds.size()); // NOLINT(*)
     // #pragma omp parallel for schedule(static)
     // for (long j = 0; j < ndata; ++j) {  // NOLINT(*)
@@ -235,7 +235,7 @@ class PoissonRegression : public IObjFunction {
       preds[j] = std::exp(preds[j]);
     });
   }
-  virtual void EvalTransform(std::vector<bst_float> *io_preds) {
+  virtual void EvalTransform(std::vector<float> *io_preds) {
     PredTransform(io_preds);
   }
   virtual float ProbToMargin(float base_score) const {
@@ -261,7 +261,7 @@ class SoftmaxMultiClassObj : public IObjFunction {
     using namespace std;
     if (!strcmp( "num_class", name )) nclass = atoi(val);
   }
-  virtual void GetGradient(const std::vector<bst_float> &preds,
+  virtual void GetGradient(const std::vector<float> &preds,
                            const MetaInfo &info,
                            int iter,
                            std::vector<bst_gpair> *out_gpair) {
@@ -276,10 +276,10 @@ class SoftmaxMultiClassObj : public IObjFunction {
     int label_error = 0;
     // #pragma omp parallel
     // {
-    //   std::vector<bst_float> rec(nclass);
+    //   std::vector<float> rec(nclass);
     //   #pragma omp for schedule(static)
     //   for (bst_omp_uint i = 0; i < ndata; ++i) {
-    //     std::vector<bst_float> rec(nclass);
+    //     std::vector<float> rec(nclass);
     //     for (int k = 0; k < nclass; ++k) {
     //       rec[k] = preds[i * nclass + k];
     //     }
@@ -306,7 +306,7 @@ class SoftmaxMultiClassObj : public IObjFunction {
       size_t begin_idx = ndata * thread_id / nthreads;
       size_t end_idx = ndata * (thread_id + 1) / nthreads;
 
-      std::vector<bst_float> rec(nclass);
+      std::vector<float> rec(nclass);
       for (size_t i = begin_idx; i < end_idx; ++i) {
         for (int k = 0; k < nclass; ++k) {
           rec[k] = preds[i * nclass + k];
@@ -334,10 +334,10 @@ class SoftmaxMultiClassObj : public IObjFunction {
                  "SoftmaxMultiClassObj: label must be in [0, num_class),"\
                  " num_class=%d but found %d in label", nclass, label_error);
   }
-  virtual void PredTransform(std::vector<bst_float> *io_preds) {
+  virtual void PredTransform(std::vector<float> *io_preds) {
     this->Transform(io_preds, output_prob);
   }
-  virtual void EvalTransform(std::vector<bst_float> *io_preds) {
+  virtual void EvalTransform(std::vector<float> *io_preds) {
     this->Transform(io_preds, 1);
   }
   virtual const char* DefaultEvalMetric(void) const {
@@ -345,15 +345,15 @@ class SoftmaxMultiClassObj : public IObjFunction {
   }
 
  private:
-  inline void Transform(std::vector<bst_float> *io_preds, int prob) {
+  inline void Transform(std::vector<float> *io_preds, int prob) {
     utils::Check(nclass != 0, "must set num_class to use softmax");
-    std::vector<bst_float> &preds = *io_preds;
-    std::vector<bst_float> tmp;
+    std::vector<float> &preds = *io_preds;
+    std::vector<float> tmp;
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(preds.size()/nclass);
     if (prob == 0) tmp.resize(ndata);
     // #pragma omp parallel
     // {
-    //   std::vector<bst_float> rec(nclass);
+    //   std::vector<float> rec(nclass);
     //   #pragma omp for schedule(static)
     //   for (bst_omp_uint j = 0; j < ndata; ++j) {
     //     for (int k = 0; k < nclass; ++k) {
@@ -374,7 +374,7 @@ class SoftmaxMultiClassObj : public IObjFunction {
       size_t begin_idx = ndata * thread_id / nthreads;
       size_t end_idx = ndata * (thread_id + 1) / nthreads;
 
-      std::vector<bst_float> rec(nclass);
+      std::vector<float> rec(nclass);
       for (size_t j = begin_idx; j < end_idx; ++j) {
         for (int k = 0; k < nclass; ++k) {
           rec[k] = preds[j * nclass + k];
@@ -411,7 +411,7 @@ class LambdaRankObj : public IObjFunction {
     if (!strcmp( "fix_list_weight", name)) fix_list_weight = static_cast<float>(atof(val));
     if (!strcmp( "num_pairsample", name)) num_pairsample = atoi(val);
   }
-  virtual void GetGradient(const std::vector<bst_float> &preds,
+  virtual void GetGradient(const std::vector<float> &preds,
                            const MetaInfo &info,
                            int iter,
                            std::vector<bst_gpair> *out_gpair) {
@@ -563,7 +563,7 @@ class LambdaRankObjNDCG : public LambdaRankObj {
     std::vector<LambdaPair> &pairs = *io_pairs;
     float IDCG;
     {
-      std::vector<bst_float> labels(sorted_list.size());
+      std::vector<float> labels(sorted_list.size());
       for (size_t i = 0; i < sorted_list.size(); ++i) {
         labels[i] = sorted_list[i].label;
       }
@@ -593,7 +593,7 @@ class LambdaRankObjNDCG : public LambdaRankObj {
       }
     }
   }
-  inline static float CalcDCG(const std::vector<bst_float> &labels) {
+  inline static float CalcDCG(const std::vector<float> &labels) {
     double sumdcg = 0.0;
     for (size_t i = 0; i < labels.size(); ++i) {
       const unsigned rel = static_cast<unsigned>(labels[i]);
