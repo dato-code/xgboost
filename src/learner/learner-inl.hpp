@@ -428,7 +428,7 @@ class BoostLearner : public rabit::Serializable {
    */
   inline void Predict(const DMatrix &data,
                       bool output_margin,
-                      std::vector<bst_float> *out_preds,
+                      std::vector<float> *out_preds,
                       unsigned ntree_limit = 0,
                       bool pred_leaf = false,
                       double rescale_constant = 1.0) const {
@@ -456,7 +456,7 @@ class BoostLearner : public rabit::Serializable {
    */
   inline void Predict(const SparseBatch::Inst &inst,
                       bool output_margin,
-                      std::vector<bst_float> *out_preds,
+                      std::vector<float> *out_preds,
                       unsigned ntree_limit = 0) const {
     gbm_->Predict(inst, out_preds, ntree_limit);
     if (out_preds->size() == 1) {
@@ -508,9 +508,9 @@ class BoostLearner : public rabit::Serializable {
    *   predictor, when it equals 0, this means we are using all the trees
    */
   inline void PredictRaw(const DMatrix &data,
-                         std::vector<bst_float> *out_preds,
+                         std::vector<float> *out_preds,
                          unsigned ntree_limit = 0,
-                         bst_float rescale_constant = 1.0) const {
+                         float rescale_constant = 1.0) const {
     gbm_->Predict(data.fmat(), this->FindBufferOffset(data),
                   data.info.info, out_preds, ntree_limit);
 
@@ -612,7 +612,7 @@ class BoostLearner : public rabit::Serializable {
   // configurations
   std::vector< std::pair<std::string, std::string> > cfg_;
   // temporal storages for prediciton
-  std::vector<bst_float> preds_;
+  std::vector<float> preds_;
   // gradient pairs
   std::vector<bst_gpair> gpair_;
 

@@ -93,7 +93,7 @@ class GBLinear : public IGradBooster {
             sum_grad += p.grad * v;
             sum_hess += p.hess * v * v;
           }
-          bst_float &w = model[fid][gid];
+          float &w = model[fid][gid];
           bst_float dw = static_cast<bst_float>(param.learning_rate *
                                                 param.CalcDelta(sum_grad, sum_hess, w));
           w += dw;
@@ -111,11 +111,11 @@ class GBLinear : public IGradBooster {
   virtual void Predict(IFMatrix *p_fmat,
                        int64_t buffer_offset,
                        const BoosterInfo &info,
-                       std::vector<bst_float> *out_preds,
+                       std::vector<float> *out_preds,
                        unsigned ntree_limit = 0) {
     utils::Check(ntree_limit == 0,
                  "GBLinear::Predict ntrees is only valid for gbtree predictor");
-    std::vector<bst_float> &preds = *out_preds;
+    std::vector<float> &preds = *out_preds;
     preds.resize(0);
     // start collecting the prediction
     utils::IIterator<RowBatch> *iter = p_fmat->RowIterator();
@@ -140,7 +140,7 @@ class GBLinear : public IGradBooster {
     }
   }
   virtual void Predict(const SparseBatch::Inst &inst,
-                       std::vector<bst_float> *out_preds,
+                       std::vector<float> *out_preds,
                        unsigned ntree_limit,
                        unsigned root_index) {
     const int ngroup = model.param.num_output_group;
@@ -150,7 +150,7 @@ class GBLinear : public IGradBooster {
   }
   virtual void PredictLeaf(IFMatrix *p_fmat,
                            const BoosterInfo &info,
-                           std::vector<bst_float> *out_preds,
+                           std::vector<float> *out_preds,
                            unsigned ntree_limit = 0) {
     utils::Error("gblinear does not support predict leaf index");
   }
@@ -172,7 +172,7 @@ class GBLinear : public IGradBooster {
   }
 
  protected:
-  inline void Pred(const RowBatch::Inst &inst, bst_float *preds) {
+  inline void Pred(const RowBatch::Inst &inst, float *preds) {
     for (int gid = 0; gid < model.param.num_output_group; ++gid) {
       float psum = model.bias()[gid];
       for (bst_uint i = 0; i < inst.length; ++i) {
@@ -253,7 +253,7 @@ class GBLinear : public IGradBooster {
     // parameter
     Param param;
     // weight for each of feature, bias is the last one
-    std::vector<bst_float> weight;
+    std::vector<float> weight;
     // initialize the model parameter
     inline void InitModel(void) {
       // bias is the last weight
@@ -271,11 +271,11 @@ class GBLinear : public IGradBooster {
       fi.Read(&weight);
     }
     // model bias
-    inline bst_float* bias(void) {
+    inline float* bias(void) {
       return &weight[param.num_feature * param.num_output_group];
     }
     // get i-th weight
-    inline bst_float* operator[](size_t i) {
+    inline float* operator[](size_t i) {
       return &weight[i * param.num_output_group];
     }
   };
