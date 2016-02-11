@@ -14,6 +14,7 @@
 #include "./gbm.h"
 #include "../utils/omp.h"
 #include "../tree/updater.h"
+#include "../tree/model.h"
 
 // GLC parallel lambda premitive 
 #include <parallel/lambda_omp.hpp>
@@ -54,6 +55,29 @@ class GBTree : public IGradBooster {
     for (size_t i = 0; i < trees.size(); ++i) {
       trees[i] = new tree::RegTree();
       trees[i]->LoadModel(fi);
+    }
+    tree_info.resize(mparam.num_trees);
+    if (mparam.num_trees != 0) {
+      utils::Check(fi.Read(&tree_info[0], sizeof(int) * mparam.num_trees) != 0,
+                   "GBTree: invalid model file");
+    }
+    if (mparam.num_pbuffer != 0 && with_pbuffer) {
+      pred_buffer.resize(mparam.PredBufferSize());
+      pred_counter.resize(mparam.PredBufferSize());
+      utils::Check(fi.Read(&pred_buffer[0], pred_buffer.size() * sizeof(float)) != 0,
+                   "GBTree: invalid model file");
+      utils::Check(fi.Read(&pred_counter[0], pred_counter.size() * sizeof(unsigned)) != 0,
+                   "GBTree: invalid model file");
+    }
+  }
+  virtual void LoadLegacyModel(utils::IStream &fi, bool with_pbuffer) {
+    this->Clear();
+    utils::Check(fi.Read(&mparam, sizeof(ModelParam)) != 0,
+                 "GBTree: invalid model file");
+    trees.resize(mparam.num_trees);
+    for (size_t i = 0; i < trees.size(); ++i) {
+      trees[i] = new tree::RegTree();
+      trees[i]->LoadLegacyModel(fi);
     }
     tree_info.resize(mparam.num_trees);
     if (mparam.num_trees != 0) {

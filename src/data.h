@@ -19,7 +19,6 @@ namespace xgboost {
  */
 typedef unsigned bst_uint;
 /*! \brief float type, used for storing statistics */
-#pragma message("Warning: XGBoost is complied with single precision")
 typedef float bst_float;
 const float rt_eps = 1e-5f;
 // min gap between feature values to allow a split happen

@@ -538,6 +538,36 @@ class TreeModel {
   }
 };
 
+/*! \brief Legacy NodeStat which stores floating points using double */
+struct LegacyRTreeNodeStat {
+  /*! \brief loss chg caused by current split */
+  double loss_chg;
+  /*! \brief sum of hessian values, used to measure coverage of data */
+  double sum_hess;
+  /*! \brief weight of current node */
+  double base_weight;
+  /*! \brief number of child that is leaf node known up to now */
+  int leaf_child_cnt;
+};
+
+/*! \brief Legacy Node which stores floating points using double */
+struct LegacyNode {
+  union Info{
+    double leaf_value;
+    double split_cond;
+  };
+  // pointer to parent, highest bit is used to
+  // indicate whether it's a left child or not
+  int parent_;
+  // pointer to left, right
+  int cleft_, cright_;
+  // split feature index, left split or right split depends on the highest bit
+  unsigned sindex_;
+  // extra info
+  Info info_;
+  // set parent
+};
+
 /*! \brief node statistics used in regression tree */
 struct RTreeNodeStat {
   /*! \brief loss chg caused by current split */
@@ -548,6 +578,15 @@ struct RTreeNodeStat {
   float base_weight;
   /*! \brief number of child that is leaf node known up to now */
   int   leaf_child_cnt;
+
+  RTreeNodeStat& operator=(const LegacyRTreeNodeStat& other) {
+    loss_chg = (float)(other.loss_chg);
+    sum_hess = (float)(other.sum_hess);
+    base_weight = (float)(other.base_weight);
+    leaf_child_cnt = other.leaf_child_cnt;
+    return *this;
+  }
+
   /*! \brief print information of current stats to fo */
   inline void Print(std::stringstream &fo, bool is_leaf) const { // NOLINT(*)
     if (!is_leaf) {
@@ -643,6 +682,60 @@ class RegTree: public TreeModel<bst_float, RTreeNodeStat>{
         return (*this)[pid].cright();
       }
     }
+  }
+  /*!
+   * \brief load a legacy model from stream
+   * \param fi input stream
+   */
+  inline void LoadLegacyModel(utils::IStream &fi) { // NOLINT(*)
+    // Legacy model uses double instead of float
+    utils::Check(fi.Read(&param, sizeof(Param)) > 0,
+                 "TreeModel: wrong format");
+    nodes.resize(param.num_nodes); stats.resize(param.num_nodes);
+    utils::Assert(param.num_nodes != 0, "invalid model");
+
+    // Legacy Loading std::vector<Node>
+    {
+      std::vector<LegacyNode> legacy_nodes;
+      legacy_nodes.resize(param.num_nodes);
+      utils::Check(fi.Read(BeginPtr(legacy_nodes), sizeof(LegacyNode) * legacy_nodes.size()) > 0,
+                   "TreeModel: wrong format");
+      for (size_t i = 0; i < param.num_nodes; ++i) {
+        size_t other_field_size = sizeof(LegacyNode) - sizeof(double);
+        utils::Check((other_field_size + sizeof(float)) == sizeof(Node), "TreeModel: wrong format");
+        memcpy(&(nodes[i]), &(legacy_nodes[i]), other_field_size);
+        float tmp = (float)(legacy_nodes[i].info_.leaf_value);
+        memcpy((((char*)&(nodes[i])) + other_field_size), &(tmp), sizeof(float));
+      }
+    }
+    // Legacy Loading std::vector<NodeStats>
+    {
+      std::vector<LegacyRTreeNodeStat> legacy_stats;
+      legacy_stats.resize(param.num_nodes);
+      utils::Check(fi.Read(BeginPtr(legacy_stats), sizeof(LegacyRTreeNodeStat) * legacy_stats.size()) > 0,
+                   "TreeModel: wrong format");
+      for (size_t i = 0; i < param.num_nodes; ++i) {
+        stats[i] = legacy_stats[i];
+      }
+    }
+    // Legacy Loading std::vector<double> leaf_vector
+    {
+      if (param.size_leaf_vector != 0) {
+        std::vector<double> legacy_leaf_vector;
+        utils::Check(fi.Read(&legacy_leaf_vector), "TreeModel: wrong format");
+        for (size_t i = 0; i < legacy_leaf_vector.size(); ++i) {
+          leaf_vector[i] = (float)(legacy_leaf_vector[i]);
+        }
+      }
+    }
+    // chg deleted nodes
+    deleted_nodes.resize(0);
+    for (int i = param.num_roots; i < param.num_nodes; ++i) {
+      if (nodes[i].is_deleted()) deleted_nodes.push_back(i);
+    }
+    utils::Assert(static_cast<int>(deleted_nodes.size()) == param.num_deleted,
+                  "number of deleted nodes do not match, num_deleted=%d, dnsize=%lu, num_nodes=%d",
+                  param.num_deleted, deleted_nodes.size(), param.num_nodes);
   }
 };
 

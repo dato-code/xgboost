@@ -39,6 +39,10 @@ class IGradBooster {
    * \param with_pbuffer whether save out pbuffer
    */
   virtual void SaveModel(utils::IStream &fo, bool with_pbuffer) const = 0; // NOLINT(*)
+
+  virtual void LoadLegacyModel(utils::IStream &fi, bool with_pbuffer) {
+    throw "Load legacy model not implemented";
+  }
   /*!
    * \brief initialize the model
    */

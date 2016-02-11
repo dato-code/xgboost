@@ -214,7 +214,7 @@ class BoostLearner : public rabit::Serializable {
     int reserved[32];
     /*! \brief constructor */
     LegacyModelParam(void) {
-      base_score = 0.5f;
+      base_score = 0.5;
       num_feature = 0;
       num_class = 0;
       std::memset(reserved, 0, sizeof(reserved));
@@ -253,7 +253,7 @@ class BoostLearner : public rabit::Serializable {
     this->InitTrainer(calc_num_feature);
     this->InitObjGBM();
     obj_->SetParam("num_class", std::to_string(mparam.num_class).c_str());
-    gbm_->LoadModel(fi, mparam.saved_with_pbuffer != 0);
+    gbm_->LoadLegacyModel(fi, mparam.saved_with_pbuffer != 0);
 
     if (mparam.saved_with_pbuffer == 0) {
       gbm_->ResetPredBuffer(pred_buffer_size);
