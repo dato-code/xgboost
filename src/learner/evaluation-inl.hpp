@@ -18,6 +18,10 @@
 #include "./evaluation.h"
 #include "./helper_utils.h"
 
+// GLC parallel lambda premitive 
+#include <parallel/lambda_omp.hpp>
+#include <parallel/pthread_tools.hpp>
+
 namespace xgboost {
 namespace learner {
 /*!
@@ -37,12 +41,13 @@ struct EvalEWiseBase : public IEvaluator {
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(info.labels.size());
 
     float sum = 0.0, wsum = 0.0;
-    #pragma omp parallel for reduction(+: sum, wsum) schedule(static)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
+    // #pragma omp parallel for reduction(+: sum, wsum) schedule(static)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for(0, ndata, [&](size_t i) {
       const float wt = info.GetWeight(i);
       sum += Derived::EvalRow(info.labels[i], preds[i]) * wt;
       wsum += wt;
-    }
+    });
     float dat[2]; dat[0] = sum, dat[1] = wsum;
     if (distributed) {
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
@@ -139,9 +144,9 @@ struct EvalMClassBase : public IEvaluator {
                  " use logloss for binary classification");
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(info.labels.size());
     float sum = 0.0, wsum = 0.0;
-    int label_error = 0;
-    #pragma omp parallel for reduction(+: sum, wsum) schedule(static)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
+    // #pragma omp parallel for reduction(+: sum, wsum) schedule(static)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for(0, ndata, [&](size_t i) {
       const float wt = info.GetWeight(i);
       int label =  static_cast<int>(info.labels[i]);
       if (label >= 0 && label < static_cast<int>(nclass)) {
@@ -149,14 +154,8 @@ struct EvalMClassBase : public IEvaluator {
                                 BeginPtr(preds) + i * nclass,
                                 nclass) * wt;
         wsum += wt;
-      } else {
-        label_error = label;
       }
-    }
-    utils::Check(label_error >= 0 && label_error < static_cast<int>(nclass),
-                 "MultiClassEvaluation: label must be in [0, num_class)," \
-                 " num_class=%d but found %d in label",
-                 static_cast<int>(nclass), label_error);
+    });
     float dat[2]; dat[0] = sum, dat[1] = wsum;
     if (distributed) {
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
@@ -272,10 +271,11 @@ struct EvalAMS : public IEvaluator {
     utils::Check(info.weights.size() == ndata, "we need weight to evaluate ams");
     std::vector< std::pair<float, unsigned> > rec(ndata);
 
-    #pragma omp parallel for schedule(static)
-    for (bst_omp_uint i = 0; i < ndata; ++i) {
+    // #pragma omp parallel for schedule(static)
+    // for (bst_omp_uint i = 0; i < ndata; ++i) {
+    graphlab::parallel_for(0, ndata, [&](size_t i) {
       rec[i] = std::make_pair(preds[i], i);
-    }
+    });
     std::sort(rec.begin(), rec.end(), CmpFirst);
     unsigned ntop = static_cast<unsigned>(ratio_ * ndata);
     if (ntop == 0) ntop = ndata;
@@ -384,12 +384,13 @@ struct EvalAuc : public IEvaluator {
     const bst_omp_uint ngroup = static_cast<bst_omp_uint>(gptr.size() - 1);
     // sum statictis
     double sum_auc = 0.0f;
-    #pragma omp parallel reduction(+:sum_auc)
+    // #pragma omp parallel reduction(+:sum_auc)
     {
       // each thread takes a local rec
       std::vector< std::pair<float, unsigned> > rec;
-      #pragma omp for schedule(static)
-      for (bst_omp_uint k = 0; k < ngroup; ++k) {
+      // #pragma omp for schedule(static)
+      // for (bst_omp_uint k = 0; k < ngroup; ++k) {
+      graphlab::parallel_for(0, ngroup, [&](size_t k) {
         rec.clear();
         for (unsigned j = gptr[k]; j < gptr[k + 1]; ++j) {
           rec.push_back(std::make_pair(preds[j], j));
@@ -416,7 +417,7 @@ struct EvalAuc : public IEvaluator {
                      "AUC: the dataset only contains pos or neg samples");
         // this is the AUC
         sum_auc += sum_pospair / (sum_npos*sum_nneg);
-      }
+      });
     }
     if (distributed) {
       float dat[2];
