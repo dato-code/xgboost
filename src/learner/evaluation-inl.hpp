@@ -386,12 +386,10 @@ struct EvalAuc : public IEvaluator {
     double sum_auc = 0.0f;
     // #pragma omp parallel reduction(+:sum_auc)
     {
-      // each thread takes a local rec
-      std::vector< std::pair<float, unsigned> > rec;
       // #pragma omp for schedule(static)
-      // for (bst_omp_uint k = 0; k < ngroup; ++k) {
-      graphlab::parallel_for(0, ngroup, [&](size_t k) {
-        rec.clear();
+      for (bst_omp_uint k = 0; k < ngroup; ++k) {
+        std::vector< std::pair<float, unsigned> > rec;
+        // each thread takes a local rec
         for (unsigned j = gptr[k]; j < gptr[k + 1]; ++j) {
           rec.push_back(std::make_pair(preds[j], j));
         }
@@ -409,7 +407,7 @@ struct EvalAuc : public IEvaluator {
             buf_neg = buf_pos = 0.0f;
           }
           buf_pos += ctr * wt; buf_neg += (1.0f - ctr) * wt;
-        }
+        };
         sum_pospair += buf_neg * (sum_npos + buf_pos *0.5);
         sum_npos += buf_pos; sum_nneg += buf_neg;
         // check weird conditions
@@ -417,7 +415,7 @@ struct EvalAuc : public IEvaluator {
                      "AUC: the dataset only contains pos or neg samples");
         // this is the AUC
         sum_auc += sum_pospair / (sum_npos*sum_nneg);
-      });
+      }
     }
     if (distributed) {
       float dat[2];
