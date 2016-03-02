@@ -40,7 +40,7 @@ struct EvalEWiseBase : public IEvaluator {
 
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(info.labels.size());
 
-    float sum = 0.0, wsum = 0.0;
+    graphlab::atomic<double> sum = 0.0, wsum = 0.0;
     // #pragma omp parallel for reduction(+: sum, wsum) schedule(static)
     // for (bst_omp_uint i = 0; i < ndata; ++i) {
     graphlab::parallel_for(0, ndata, [&](size_t i) {
@@ -48,7 +48,7 @@ struct EvalEWiseBase : public IEvaluator {
       sum += Derived::EvalRow(info.labels[i], preds[i]) * wt;
       wsum += wt;
     });
-    float dat[2]; dat[0] = sum, dat[1] = wsum;
+    double dat[2]; dat[0] = sum, dat[1] = wsum;
     if (distributed) {
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
     }
@@ -143,7 +143,7 @@ struct EvalMClassBase : public IEvaluator {
                  "mlogloss and merror are only used for multi-class classification,"\
                  " use logloss for binary classification");
     const bst_omp_uint ndata = static_cast<bst_omp_uint>(info.labels.size());
-    float sum = 0.0, wsum = 0.0;
+    graphlab::atomic<double> sum = 0.0, wsum = 0.0;
     // #pragma omp parallel for reduction(+: sum, wsum) schedule(static)
     // for (bst_omp_uint i = 0; i < ndata; ++i) {
     graphlab::parallel_for(0, ndata, [&](size_t i) {
@@ -156,7 +156,7 @@ struct EvalMClassBase : public IEvaluator {
         wsum += wt;
       }
     });
-    float dat[2]; dat[0] = sum, dat[1] = wsum;
+    double dat[2]; dat[0] = sum, dat[1] = wsum;
     if (distributed) {
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
     }
@@ -418,9 +418,9 @@ struct EvalAuc : public IEvaluator {
       }
     }
     if (distributed) {
-      float dat[2];
-      dat[0] = static_cast<float>(sum_auc);
-      dat[1] = static_cast<float>(ngroup);
+      double dat[2];
+      dat[0] = sum_auc;
+      dat[1] = group;
       // approximately estimate auc using mean
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
       return dat[0] / dat[1];
@@ -464,9 +464,9 @@ struct EvalRankList : public IEvaluator {
       }
     }
     if (distributed) {
-      float dat[2];
-      dat[0] = static_cast<float>(sum_metric);
-      dat[1] = static_cast<float>(ngroup);
+      double dat[2];
+      dat[0] = sum_metric;
+      dat[1] = ngroup;
       // approximately estimate auc using mean
       rabit::Allreduce<rabit::op::Sum>(dat, 2);
       return dat[0] / dat[1];
