@@ -443,7 +443,7 @@ class TreeModel {
           }
           case utils::FeatMap::kInteger: {
             fo << nid << ":[" << fmap.name(split_index) << "<"
-               << int(float(cond))
+               << cond
                << "] yes=" << nodes[nid].cleft()
                << ",no=" << nodes[nid].cright()
                << ",missing=" << nodes[nid].cdefault();
@@ -504,7 +504,7 @@ class TreeModel {
               }
               case utils::FeatMap::kInteger:{
                   vertex.push_back(JSONNode("type", "integer"));
-                  vertex.push_back(JSONNode("value", int(float(cond))));
+                  vertex.push_back(JSONNode("value", cond));
                   left_edge.push_back(JSONNode("dst", nodes[nid].cleft()));
                   left_edge.push_back(JSONNode("value", "yes"));
                   right_edge.push_back(JSONNode("dst", nodes[nid].cright()));
