@@ -11,7 +11,7 @@
 
 #include <vector>
 #include <algorithm>
-#include "../data.h"
+#include <xgboost/src/data.h>
 
 namespace xgboost {
 namespace io {

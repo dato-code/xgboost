@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 #include <cstdio>
-#include "../utils/utils.h"
+#include <xgboost/src/utils/utils.h>
 #include "./dmatrix.h"
 
 namespace xgboost {

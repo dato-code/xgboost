@@ -10,8 +10,8 @@
 
 #include <vector>
 #include <algorithm>
-#include "../sync/sync.h"
-#include "../utils/quantile.h"
+#include <xgboost/src/sync/sync.h>
+#include <xgboost/src/utils/quantile.h>
 #include "./updater_basemaker-inl.hpp"
 
 // GLC parallel lambda premitive 

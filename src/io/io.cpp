@@ -3,9 +3,9 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #define NOMINMAX
 #include <string>
-#include "./io.h"
-#include "../utils/io.h"
-#include "../utils/utils.h"
+#include <xgboost/src/utils/io.h>
+#include <xgboost/src/utils/utils.h>
+#include "io.h"
 #include "simple_dmatrix-inl.hpp"
 #include "page_dmatrix-inl.hpp"
 

@@ -10,8 +10,8 @@
 
 #include <vector>
 #include <cstring>
-#include "../data.h"
-#include "../utils/io.h"
+#include <xgboost/src/data.h>
+#include <xgboost/src/utils/io.h>
 namespace xgboost {
 namespace learner {
 /*!

@@ -8,8 +8,8 @@
 #ifndef XGBOOST_IO_IO_H_
 #define XGBOOST_IO_IO_H_
 
-#include "../data.h"
-#include "../learner/dmatrix.h"
+#include <xgboost/src/data.h>
+#include <xgboost/src/learner/dmatrix.h>
 
 namespace xgboost {
 /*! \brief namespace related to data format */

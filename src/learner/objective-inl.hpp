@@ -12,11 +12,11 @@
 #include <utility>
 #include <cmath>
 #include <functional>
-#include "../data.h"
+#include <xgboost/src/data.h>
+#include <xgboost/src/utils/random.h>
+#include <xgboost/src/utils/omp.h>
 #include "./objective.h"
 #include "./helper_utils.h"
-#include "../utils/random.h"
-#include "../utils/omp.h"
 
 // GLC parallel lambda premitive 
 #include <parallel/lambda_omp.hpp>

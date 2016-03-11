@@ -15,12 +15,12 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
-#include "../data.h"
-#include "../utils/utils.h"
-#include "../learner/dmatrix.h"
+#include <xgboost/src/data.h>
+#include <xgboost/src/utils/utils.h>
+#include <xgboost/src/learner/dmatrix.h>
+#include <xgboost/src/sync/sync.h>
 #include "./io.h"
 #include "./simple_fmatrix-inl.hpp"
-#include "../sync/sync.h"
 #include "./libsvm_parser.h"
 
 namespace xgboost {

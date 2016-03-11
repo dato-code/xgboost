@@ -12,7 +12,7 @@
 #include <string>
 #include <cstring>
 #include "./utils.h"
-#include "../sync/sync.h"
+#include <xgboost/src/sync/sync.h>
 
 namespace xgboost {
 namespace utils {

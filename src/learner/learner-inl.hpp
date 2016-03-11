@@ -12,11 +12,11 @@
 #include <utility>
 #include <string>
 #include <limits>
-#include "../sync/sync.h"
-#include "../utils/io.h"
+#include <xgboost/src/sync/sync.h>
+#include <xgboost/src/utils/io.h>
+#include <xgboost/src/gbm/gbm.h>
 #include "./objective.h"
 #include "./evaluation.h"
-#include "../gbm/gbm.h"
 
 // GLC parallel lambda premitive 
 #include <parallel/lambda_omp.hpp>

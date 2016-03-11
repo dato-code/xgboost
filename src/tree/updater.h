@@ -9,7 +9,7 @@
 
 #include <vector>
 
-#include "../data.h"
+#include <xgboost/src/data.h>
 #include "./model.h"
 
 namespace xgboost {

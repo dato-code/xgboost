@@ -10,7 +10,7 @@
 #include <vector>
 #include <string>
 #include <limits>
-#include "../sync/sync.h"
+#include <xgboost/src/sync/sync.h>
 #include "./updater.h"
 
 namespace xgboost {

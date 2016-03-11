@@ -10,9 +10,9 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include "../data.h"
-#include "../utils/iterator.h"
-#include "../utils/thread_buffer.h"
+#include <xgboost/src/data.h>
+#include <xgboost/src/utils/iterator.h>
+#include <xgboost/src/utils/thread_buffer.h>
 #include "./simple_fmatrix-inl.hpp"
 #include "./sparse_batch_page.h"
 #include "./page_fmatrix-inl.hpp"

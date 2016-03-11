@@ -13,8 +13,8 @@
 #include <cmath>
 #include <climits>
 #include <algorithm>
-#include "../sync/sync.h"
-#include "../utils/math.h"
+#include <xgboost/src/sync/sync.h>
+#include <xgboost/src/utils/math.h>
 #include "./evaluation.h"
 #include "./helper_utils.h"
 

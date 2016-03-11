@@ -8,6 +8,6 @@
 #ifndef XGBOOST_SYNC_SYNC_H_
 #define XGBOOST_SYNC_SYNC_H_
 
-#include "../../subtree/rabit/include/rabit.h"
-#include "../../subtree/rabit/include/rabit/timer.h"
+#include <xgboost/subtree/rabit/include/rabit.h>
+#include <xgboost/subtree/rabit/include/rabit/timer.h>
 #endif  // XGBOOST_SYNC_SYNC_H_

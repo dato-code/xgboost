@@ -10,12 +10,12 @@
 #include <limits>
 #include <algorithm>
 #include <vector>
-#include "../data.h"
-#include "../utils/utils.h"
-#include "../utils/random.h"
-#include "../utils/omp.h"
-#include "../learner/dmatrix.h"
-#include "../utils/group_data.h"
+#include <xgboost/src/data.h>
+#include <xgboost/src/utils/utils.h>
+#include <xgboost/src/utils/random.h>
+#include <xgboost/src/utils/omp.h>
+#include <xgboost/src/learner/dmatrix.h>
+#include <xgboost/src/utils/group_data.h>
 #include "./sparse_batch_page.h"
 
 // GLC parallel lambda premitive 

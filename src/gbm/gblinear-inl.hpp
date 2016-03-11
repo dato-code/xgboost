@@ -12,8 +12,8 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
-#include "./gbm.h"
-#include "../tree/updater.h"
+#include "gbm.h"
+#include <xgboost/src/tree/updater.h>
 
 namespace xgboost {
 namespace gbm {

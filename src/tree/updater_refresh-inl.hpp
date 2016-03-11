@@ -9,10 +9,10 @@
 
 #include <vector>
 #include <limits>
-#include "../sync/sync.h"
 #include "./param.h"
 #include "./updater.h"
-#include "../utils/omp.h"
+#include <xgboost/src/sync/sync.h>
+#include <xgboost/src/utils/omp.h>
 
 // GLC parallel lambda premitive 
 #include <parallel/lambda_omp.hpp>

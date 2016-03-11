@@ -11,10 +11,10 @@
 #include <utility>
 #include <string>
 #include <limits>
-#include "./gbm.h"
-#include "../utils/omp.h"
-#include "../tree/updater.h"
-#include "../tree/model.h"
+#include "gbm.h"
+#include <xgboost/src/utils/omp.h>
+#include <xgboost/src/tree/updater.h>
+#include <xgboost/src/tree/model.h>
 
 // GLC parallel lambda premitive 
 #include <parallel/lambda_omp.hpp>

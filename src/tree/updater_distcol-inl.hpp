@@ -10,9 +10,9 @@
 
 #include <vector>
 #include <algorithm>
-#include "../sync/sync.h"
-#include "../utils/bitmap.h"
-#include "../utils/io.h"
+#include <xgboost/src/sync/sync.h>
+#include <xgboost/src/utils/bitmap.h>
+#include <xgboost/src/utils/io.h>
 #include "./updater_colmaker-inl.hpp"
 #include "./updater_prune-inl.hpp"
 

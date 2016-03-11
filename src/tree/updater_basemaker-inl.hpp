@@ -10,9 +10,9 @@
 #include <algorithm>
 #include <string>
 #include <limits>
-#include "../sync/sync.h"
-#include "../utils/random.h"
-#include "../utils/quantile.h"
+#include <xgboost/src/sync/sync.h>
+#include <xgboost/src/utils/random.h>
+#include <xgboost/src/utils/quantile.h>
 
 // GLC parallel lambda premitive 
 #include <parallel/lambda_omp.hpp>

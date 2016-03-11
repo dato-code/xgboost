@@ -14,9 +14,9 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
-#include "../utils/io.h"
-#include "../utils/fmap.h"
-#include "../utils/utils.h"
+#include <xgboost/src/utils/io.h>
+#include <xgboost/src/utils/fmap.h>
+#include <xgboost/src/utils/utils.h>
 #include <json/json_include.hpp>
 
 namespace xgboost {

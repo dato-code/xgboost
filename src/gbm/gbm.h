@@ -9,9 +9,9 @@
 
 #include <vector>
 #include <string>
-#include "../data.h"
-#include "../utils/io.h"
-#include "../utils/fmap.h"
+#include <xgboost/src/data.h>
+#include <xgboost/src/io/io.h>
+#include <xgboost/src/utils/fmap.h>
 
 namespace xgboost {
 /*! \brief namespace for gradient booster */
